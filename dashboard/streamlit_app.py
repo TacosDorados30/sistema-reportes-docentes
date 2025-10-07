@@ -130,7 +130,8 @@ def main():
         from dashboard.pages.advanced_analytics import show_advanced_analytics
         show_advanced_analytics()
     elif page == "Exportar Datos":
-        show_data_export(all_forms)
+        from dashboard.pages.data_export import show_data_export_page
+        show_data_export_page()
 
 def show_main_dashboard(all_forms, metrics):
     """Show main dashboard with overview metrics"""
