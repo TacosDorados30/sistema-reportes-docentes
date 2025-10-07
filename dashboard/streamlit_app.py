@@ -14,6 +14,7 @@ from app.database.crud import FormularioCRUD
 from app.core.data_processor import DataProcessor
 from app.core.metrics_calculator import MetricsCalculator
 from app.models.database import EstadoFormularioEnum
+from app.auth.streamlit_auth import auth
 
 # Page configuration
 st.set_page_config(
@@ -100,14 +101,44 @@ def reject_form(form_id: int, comment: str = ""):
 def main():
     """Main dashboard application"""
     
+    # Require authentication
+    if not auth.require_authentication():
+        return
+    
     # Header
     st.markdown('<h1 class="main-header">📊 Sistema de Reportes Docentes</h1>', unsafe_allow_html=True)
+    
+    # Show user menu in sidebar
+    auth.show_user_menu()
+    auth.show_admin_menu()
+    
+    # Check for admin page requests
+    if st.session_state.get('show_user_management'):
+        auth.show_user_management()
+        if st.button("← Volver al Dashboard"):
+            st.session_state.show_user_management = False
+            st.rerun()
+        return
+    
+    if st.session_state.get('show_session_management'):
+        auth.show_session_management()
+        if st.button("← Volver al Dashboard"):
+            st.session_state.show_session_management = False
+            st.rerun()
+        return
+    
+    if st.session_state.get('show_password_change'):
+        auth.show_password_change()
+        if st.button("← Volver al Dashboard"):
+            st.session_state.show_password_change = False
+            st.rerun()
+        return
     
     # Sidebar navigation
     st.sidebar.title("Navegación")
     page = st.sidebar.selectbox(
         "Seleccionar página",
-        ["Dashboard Principal", "Revisión de Formularios", "Métricas Detalladas", "Análisis de Datos", "Análisis Avanzado", "Exportar Datos"]
+        ["Dashboard Principal", "Revisión de Formularios", "Métricas Detalladas", "Análisis de Datos", "Análisis Avanzado", "Exportar Datos", "Generación de Reportes"]
     )
     
     # Load data
@@ -132,6 +163,9 @@ def main():
     elif page == "Exportar Datos":
         from dashboard.pages.data_export import show_data_export_page
         show_data_export_page()
+    elif page == "Generación de Reportes":
+        from dashboard.pages.report_generation import show_report_generation_page
+        show_report_generation_page()
 
 def show_main_dashboard(all_forms, metrics):
     """Show main dashboard with overview metrics"""

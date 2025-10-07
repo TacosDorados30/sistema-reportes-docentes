@@ -141,7 +141,9 @@
   - Test form submission with various data combinations
   - _Requirements: 1.4, 1.5_
 
-- [ ] 12. Set up admin authentication
+- [x] 12. Set up admin authentication
+
+
   - Implement basic password authentication for admin panel
   - Create login page and session management
   - Add logout functionality and session timeout
