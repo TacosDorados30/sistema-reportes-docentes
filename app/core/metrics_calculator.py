@@ -611,7 +611,7 @@ class MetricsCalculator:
                 comparison['cambios'][key] = round(change, 2)
         
         return comparison 
-   def _identify_annual_achievements(self, detailed_data: Dict[str, Any]) -> List[str]:
+    def _identify_annual_achievements(self, detailed_data: Dict[str, Any]) -> List[str]:
         """Identify annual achievements"""
         return self._identify_main_achievements(detailed_data)
     
