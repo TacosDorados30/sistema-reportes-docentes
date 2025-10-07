@@ -174,27 +174,7 @@ function submitForm() {
     const formData = new FormData(form);
     const jsonData = formDataToJSON(formData);
     
-    // Submit to API (for now, simulate success)
-    // TODO: Replace with actual API endpoint when backend is ready
-    setTimeout(() => {
-        // Simulate API response
-        const simulateSuccess = true;
-        
-        if (simulateSuccess) {
-            showMessage('¡Formulario enviado exitosamente! Será revisado por la administradora.', 'success');
-            form.reset();
-            resetDynamicSections();
-        } else {
-            showMessage('Error al enviar el formulario. Por favor, intente nuevamente.', 'error');
-        }
-        
-        // Reset button state
-        submitButton.disabled = false;
-        submitButton.textContent = 'Enviar Formulario';
-        loading.style.display = 'none';
-    }, 2000);
-    
-    return; // Remove this when implementing real API
+    // Submit to API
     
     fetch('/api/formulario/enviar', {
         method: 'POST',
