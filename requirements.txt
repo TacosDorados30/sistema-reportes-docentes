@@ -1,0 +1,42 @@
+# Core Framework
+fastapi==0.104.1
+uvicorn==0.24.0
+streamlit==1.28.1
+
+# Database
+sqlalchemy==2.0.23
+sqlite3
+
+# Data Processing
+pandas==2.1.3
+numpy==1.25.2
+scikit-learn==1.3.2
+
+# Validation
+pydantic==2.5.0
+email-validator==2.1.0
+
+# Visualization
+plotly==5.17.0
+matplotlib==3.8.2
+seaborn==0.13.0
+
+# Report Generation
+jinja2==3.1.2
+reportlab==4.0.7
+openpyxl==3.1.2
+python-pptx==0.6.23
+
+# Text Processing for NLG
+nltk==3.8.1
+
+# Web and API
+requests==2.31.0
+python-multipart==0.0.6
+python-jose==3.3.0
+passlib==1.7.4
+bcrypt==4.1.2
+
+# Utilities
+python-dotenv==1.0.0
+pytz==2023.3
