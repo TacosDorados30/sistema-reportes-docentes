@@ -107,7 +107,7 @@ def main():
     st.sidebar.title("Navegación")
     page = st.sidebar.selectbox(
         "Seleccionar página",
-        ["Dashboard Principal", "Revisión de Formularios", "Métricas Detalladas", "Análisis de Datos", "Exportar Datos"]
+        ["Dashboard Principal", "Revisión de Formularios", "Métricas Detalladas", "Análisis de Datos", "Análisis Avanzado", "Exportar Datos"]
     )
     
     # Load data
@@ -126,6 +126,9 @@ def main():
         show_detailed_metrics(all_forms, metrics)
     elif page == "Análisis de Datos":
         show_data_analysis(all_forms)
+    elif page == "Análisis Avanzado":
+        from dashboard.pages.advanced_analytics import show_advanced_analytics
+        show_advanced_analytics()
     elif page == "Exportar Datos":
         show_data_export(all_forms)
 

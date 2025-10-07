@@ -72,13 +72,16 @@
 - [x] 6. Build admin dashboard with Streamlit
 
 
+
   - Create main dashboard page with navigation
   - Implement form review interface with approve/reject buttons
   - Build metrics overview page with key statistics
   - Add filtering capabilities by date, category, and status
   - _Requirements: 2.1, 2.2, 2.6, 4.1, 4.2, 4.3_
 
-- [ ] 7. Create interactive visualizations
+- [x] 7. Create interactive visualizations
+
+
   - Implement Plotly charts for different data categories
   - Create bar charts for course counts and hours
   - Build pie charts for publication status distribution
