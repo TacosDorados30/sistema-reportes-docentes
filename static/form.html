@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulario de Información Docente</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Formulario de Información Docente</h1>
+        <p>Complete la siguiente información sobre sus actividades académicas. Los campos marcados con <span class="required">*</span> son obligatorios.</p>
+        
+        <form id="docente-form">
+            <!-- Información Personal -->
+            <h2>Información Personal</h2>
+            <div class="form-group">
+                <label for="nombre_completo">Nombre Completo <span class="required">*</span></label>
+                <input type="text" id="nombre_completo" name="nombre_completo" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="correo_institucional">Correo Electrónico Institucional <span class="required">*</span></label>
+                <input type="email" id="correo_institucional" name="correo_institucional" required>
+            </div>
+
+            <!-- Cursos de Capacitación -->
+            <h2>Cursos de Capacitación</h2>
+            <div id="cursos_capacitacion-container">
+                <div class="dynamic-section" id="cursos_capacitacion-template" style="display: none;">
+                    <button type="button" class="remove-button">Eliminar</button>
+                    <div class="form-group">
+                        <label>Nombre del Curso</label>
+                        <input type="text" name="cursos_capacitacion[].nombre_curso">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha</label>
+                        <input type="date" name="cursos_capacitacion[].fecha">
+                    </div>
+                    <div class="form-group">
+                        <label>Número de Horas</label>
+                        <input type="number" name="cursos_capacitacion[].horas" min="1">
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="add-button" data-section="cursos_capacitacion">+ Agregar Curso</button>
+
+            <!-- Publicaciones -->
+            <h2>Trabajos / Ponencias / Artículos</h2>
+            <div id="publicaciones-container">
+                <div class="dynamic-section" id="publicaciones-template" style="display: none;">
+                    <button type="button" class="remove-button">Eliminar</button>
+                    <div class="form-group">
+                        <label>Autor(es)</label>
+                        <input type="text" name="publicaciones[].autores">
+                    </div>
+                    <div class="form-group">
+                        <label>Título</label>
+                        <textarea name="publicaciones[].titulo" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Evento o Revista</label>
+                        <input type="text" name="publicaciones[].evento_revista">
+                    </div>
+                    <div class="form-group">
+                        <label>Estatus</label>
+                        <select name="publicaciones[].estatus">
+                            <option value="">Seleccione...</option>
+                            <option value="ACEPTADO">Aceptado</option>
+                            <option value="EN_REVISION">En Revisión</option>
+                            <option value="PUBLICADO">Publicado</option>
+                            <option value="RECHAZADO">Rechazado</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="add-button" data-section="publicaciones">+ Agregar Publicación</button>
+
+            <!-- Eventos Académicos -->
+            <h2>Organización / Participación en Eventos Académicos</h2>
+            <div id="eventos_academicos-container">
+                <div class="dynamic-section" id="eventos_academicos-template" style="display: none;">
+                    <button type="button" class="remove-button">Eliminar</button>
+                    <div class="form-group">
+                        <label>Nombre del Evento</label>
+                        <input type="text" name="eventos_academicos[].nombre_evento">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha</label>
+                        <input type="date" name="eventos_academicos[].fecha">
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de Participación</label>
+                        <select name="eventos_academicos[].tipo_participacion">
+                            <option value="">Seleccione...</option>
+                            <option value="ORGANIZADOR">Organizador</option>
+                            <option value="PARTICIPANTE">Participante</option>
+                            <option value="PONENTE">Ponente</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="add-button" data-section="eventos_academicos">+ Agregar Evento</button>
+
+            <!-- Diseño Curricular -->
+            <h2>Diseño Curricular</h2>
+            <div id="diseno_curricular-container">
+                <div class="dynamic-section" id="diseno_curricular-template" style="display: none;">
+                    <button type="button" class="remove-button">Eliminar</button>
+                    <div class="form-group">
+                        <label>Nombre del Curso</label>
+                        <input type="text" name="diseno_curricular[].nombre_curso">
+                    </div>
+                    <div class="form-group">
+                        <label>Descripción (Opcional)</label>
+                        <textarea name="diseno_curricular[].descripcion" rows="2"></textarea>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="add-button" data-section="diseno_curricular">+ Agregar Diseño Curricular</button>
+
+            <!-- Experiencias de Movilidad -->
+            <h2>Experiencias de Movilidad</h2>
+            <div id="movilidad-container">
+                <div class="dynamic-section" id="movilidad-template" style="display: none;">
+                    <button type="button" class="remove-button">Eliminar</button>
+                    <div class="form-group">
+                        <label>Descripción</label>
+                        <textarea name="movilidad[].descripcion" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo</label>
+                        <select name="movilidad[].tipo">
+                            <option value="">Seleccione...</option>
+                            <option value="NACIONAL">Nacional</option>
+                            <option value="INTERNACIONAL">Internacional</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha</label>
+                        <input type="date" name="movilidad[].fecha">
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="add-button" data-section="movilidad">+ Agregar Experiencia de Movilidad</button>
+
+            <!-- Reconocimientos -->
+            <h2>Grados, Premios y Distinciones</h2>
+            <div id="reconocimientos-container">
+                <div class="dynamic-section" id="reconocimientos-template" style="display: none;">
+                    <button type="button" class="remove-button">Eliminar</button>
+                    <div class="form-group">
+                        <label>Nombre</label>
+                        <input type="text" name="reconocimientos[].nombre">
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo</label>
+                        <select name="reconocimientos[].tipo">
+                            <option value="">Seleccione...</option>
+                            <option value="GRADO">Grado Académico</option>
+                            <option value="PREMIO">Premio</option>
+                            <option value="DISTINCION">Distinción</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha</label>
+                        <input type="date" name="reconocimientos[].fecha">
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="add-button" data-section="reconocimientos">+ Agregar Reconocimiento</button>
+
+            <!-- Certificaciones -->
+            <h2>Certificaciones Vigentes</h2>
+            <div id="certificaciones-container">
+                <div class="dynamic-section" id="certificaciones-template" style="display: none;">
+                    <button type="button" class="remove-button">Eliminar</button>
+                    <div class="form-group">
+                        <label>Nombre de la Certificación</label>
+                        <input type="text" name="certificaciones[].nombre">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha de Obtención</label>
+                        <input type="date" name="certificaciones[].fecha_obtencion">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha de Vencimiento (Opcional)</label>
+                        <input type="date" name="certificaciones[].fecha_vencimiento">
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="add-button" data-section="certificaciones">+ Agregar Certificación</button>
+
+            <!-- Submit Button -->
+            <button type="submit" class="submit-button">Enviar Formulario</button>
+            
+            <!-- Loading and Messages -->
+            <div class="loading">
+                <p>Enviando formulario...</p>
+            </div>
+        </form>
+    </div>
+
+    <script src="js/form.js"></script>
+</body>
+</html>

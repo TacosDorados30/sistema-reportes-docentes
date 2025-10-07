@@ -78,6 +78,29 @@ textarea:focus {
     padding: 15px;
     margin-bottom: 15px;
     background-color: #fafafa;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.dynamic-section:hover {
+    border-color: #1f77b4;
+    box-shadow: 0 2px 8px rgba(31, 119, 180, 0.1);
+}
+
+select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+    background-color: white;
+    transition: border-color 0.3s;
+}
+
+select:focus {
+    outline: none;
+    border-color: #1f77b4;
+    box-shadow: 0 0 5px rgba(31, 119, 180, 0.3);
 }
 
 .add-button {
@@ -179,5 +202,134 @@ textarea:focus {
     input[type="number"],
     textarea {
         font-size: 16px; /* Prevents zoom on iOS */
+    }
+}
+/* Form va
+lidation styles */
+.field-error {
+    border-color: #e74c3c !important;
+    box-shadow: 0 0 5px rgba(231, 76, 60, 0.3) !important;
+}
+
+.field-success {
+    border-color: #27ae60 !important;
+    box-shadow: 0 0 5px rgba(39, 174, 96, 0.3) !important;
+}
+
+/* Enhanced dynamic sections */
+.dynamic-item {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Improved form layout */
+.form-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.form-row .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+/* Better button styling */
+.button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+/* Loading spinner */
+.loading {
+    text-align: center;
+    padding: 20px;
+}
+
+.loading::before {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #1f77b4;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Form section headers */
+h2 {
+    position: relative;
+    padding-left: 20px;
+}
+
+h2::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 20px;
+    background-color: #1f77b4;
+    border-radius: 2px;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    .form-row .form-group {
+        margin-bottom: 15px;
+    }
+    
+    .remove-button {
+        position: static;
+        float: none;
+        margin-bottom: 10px;
+        width: 100%;
+    }
+}
+
+/* Accessibility improvements */
+input:focus,
+textarea:focus,
+select:focus {
+    outline: 2px solid #1f77b4;
+    outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+    .add-button,
+    .remove-button,
+    .submit-button {
+        display: none;
+    }
+    
+    .container {
+        box-shadow: none;
+        margin: 0;
+        padding: 20px;
     }
 }
