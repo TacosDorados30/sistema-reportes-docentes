@@ -9,6 +9,17 @@ import os
 # Add the project root to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Initialize application on first run
+if 'app_initialized' not in st.session_state:
+    try:
+        from app.startup import startup_application
+        startup_result = startup_application()
+        st.session_state.app_initialized = True
+        st.session_state.startup_result = startup_result
+    except Exception as e:
+        st.error(f"Error initializing application: {e}")
+        st.stop()
+
 from app.database.connection import SessionLocal
 from app.database.crud import FormularioCRUD
 from app.core.data_processor import DataProcessor
