@@ -81,54 +81,162 @@ def get_pending_forms():
         db.close()
 
 def approve_form(form_id: int):
-    """Approve a form"""
+    """Approve a form with comprehensive error handling"""
+    from app.core.error_handler import error_handler, DatabaseError, ValidationError
+    from app.core.logging_middleware import app_logger
+    from app.core.validators import DatabaseValidator
+    
+    # Validate input
+    if not DatabaseValidator.validate_id(form_id):
+        error_handler.log_error(
+            ValidationError("Invalid form ID", "form_id"),
+            "approve_form",
+            auth.get_current_user().get("username") if auth.get_current_user() else None
+        )
+        return False
+    
     db = SessionLocal()
     try:
         crud = FormularioCRUD(db)
+        user_info = auth.get_current_user()
+        user_id = user_info.get("username") if user_info else "unknown"
+        
+        app_logger.log_operation(
+            "form_approval_start",
+            {"form_id": form_id},
+            user_id=user_id
+        )
         
         # Get form details for logging
         form = crud.get_formulario(form_id)
         if not form:
+            error_msg = f"Form with ID {form_id} not found"
+            app_logger.log_operation(
+                "form_approval_failed",
+                {"form_id": form_id, "reason": "form_not_found"},
+                "WARNING",
+                user_id
+            )
+            return False
+        
+        # Check if form is in valid state for approval
+        if form.estado.value != "PENDIENTE":
+            error_msg = f"Form {form_id} is not in pending state (current: {form.estado.value})"
+            app_logger.log_operation(
+                "form_approval_failed",
+                {"form_id": form_id, "reason": "invalid_state", "current_state": form.estado.value},
+                "WARNING",
+                user_id
+            )
             return False
         
         success = crud.aprobar_formulario(form_id, "streamlit_admin")
         
-        # Log the approval action
         if success:
+            # Log the approval action
             try:
                 from app.core.simple_audit import simple_audit
-                user_info = auth.get_current_user()
                 if user_info:
                     simple_audit.log_form_approval(
                         form_id=form_id,
                         form_owner=form.nombre_completo,
                         approved_by=user_info["name"]
                     )
+                
+                app_logger.log_operation(
+                    "form_approval_success",
+                    {"form_id": form_id, "form_owner": form.nombre_completo},
+                    user_id=user_id
+                )
+                
             except Exception as e:
-                print(f"Audit logging failed: {e}")
+                error_handler.log_error(e, "audit_logging_in_approval", user_id)
+        else:
+            app_logger.log_operation(
+                "form_approval_failed",
+                {"form_id": form_id, "reason": "database_operation_failed"},
+                "ERROR",
+                user_id
+            )
         
         return success
+        
+    except Exception as e:
+        db_error = error_handler.handle_database_error(
+            e, 
+            "approve_form", 
+            auth.get_current_user().get("username") if auth.get_current_user() else None
+        )
+        app_logger.log_operation(
+            "form_approval_error",
+            {"form_id": form_id, "error": str(db_error)},
+            "ERROR",
+            auth.get_current_user().get("username") if auth.get_current_user() else None
+        )
+        return False
     finally:
         db.close()
 
 def reject_form(form_id: int, comment: str = ""):
-    """Reject a form"""
+    """Reject a form with comprehensive error handling"""
+    from app.core.error_handler import error_handler, DatabaseError, ValidationError
+    from app.core.logging_middleware import app_logger
+    from app.core.validators import DatabaseValidator
+    
+    # Validate input
+    if not DatabaseValidator.validate_id(form_id):
+        error_handler.log_error(
+            ValidationError("Invalid form ID", "form_id"),
+            "reject_form",
+            auth.get_current_user().get("username") if auth.get_current_user() else None
+        )
+        return False
+    
+    # Sanitize comment
+    if comment:
+        comment = DatabaseValidator.sanitize_string(comment, 1000)
+    
     db = SessionLocal()
     try:
         crud = FormularioCRUD(db)
+        user_info = auth.get_current_user()
+        user_id = user_info.get("username") if user_info else "unknown"
+        
+        app_logger.log_operation(
+            "form_rejection_start",
+            {"form_id": form_id, "has_comment": bool(comment)},
+            user_id=user_id
+        )
         
         # Get form details for logging
         form = crud.get_formulario(form_id)
         if not form:
+            error_msg = f"Form with ID {form_id} not found"
+            app_logger.log_operation(
+                "form_rejection_failed",
+                {"form_id": form_id, "reason": "form_not_found"},
+                "WARNING",
+                user_id
+            )
+            return False
+        
+        # Check if form is in valid state for rejection
+        if form.estado.value != "PENDIENTE":
+            error_msg = f"Form {form_id} is not in pending state (current: {form.estado.value})"
+            app_logger.log_operation(
+                "form_rejection_failed",
+                {"form_id": form_id, "reason": "invalid_state", "current_state": form.estado.value},
+                "WARNING",
+                user_id
+            )
             return False
         
         success = crud.rechazar_formulario(form_id, "streamlit_admin", comment)
         
-        # Log the rejection action
         if success:
+            # Log the rejection action
             try:
                 from app.core.simple_audit import simple_audit
-                user_info = auth.get_current_user()
                 if user_info:
                     simple_audit.log_form_rejection(
                         form_id=form_id,
@@ -136,8 +244,40 @@ def reject_form(form_id: int, comment: str = ""):
                         rejected_by=user_info["name"],
                         reason=comment
                     )
+                
+                app_logger.log_operation(
+                    "form_rejection_success",
+                    {"form_id": form_id, "form_owner": form.nombre_completo, "comment_length": len(comment) if comment else 0},
+                    user_id=user_id
+                )
+                
             except Exception as e:
-                print(f"Audit logging failed: {e}")
+                error_handler.log_error(e, "audit_logging_in_rejection", user_id)
+        else:
+            app_logger.log_operation(
+                "form_rejection_failed",
+                {"form_id": form_id, "reason": "database_operation_failed"},
+                "ERROR",
+                user_id
+            )
+        
+        return success
+        
+    except Exception as e:
+        db_error = error_handler.handle_database_error(
+            e, 
+            "reject_form", 
+            auth.get_current_user().get("username") if auth.get_current_user() else None
+        )
+        app_logger.log_operation(
+            "form_rejection_error",
+            {"form_id": form_id, "error": str(db_error)},
+            "ERROR",
+            auth.get_current_user().get("username") if auth.get_current_user() else None
+        )
+        return False
+    finally:
+        db.close()
         
         return success
     finally:

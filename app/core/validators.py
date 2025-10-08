@@ -20,11 +20,19 @@ class FormValidator:
     @staticmethod
     def validate_email(email: str) -> bool:
         """Validate email format"""
+        if not email or not isinstance(email, str):
+            return False
+        
+        # Basic regex validation as fallback
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        
         try:
+            # Try using email-validator first
             validate_email(email)
             return True
-        except EmailNotValidError:
-            return False
+        except (EmailNotValidError, Exception):
+            # Fallback to regex validation
+            return bool(re.match(email_pattern, email))
     
     @staticmethod
     def validate_name(name: str, min_length: int = 2, max_length: int = 255) -> bool:

@@ -23,6 +23,8 @@ class AuditActionEnum(enum.Enum):
     SYSTEM_ACCESS = "SYSTEM_ACCESS"
     DATA_VIEW = "DATA_VIEW"
     CONFIGURATION_CHANGE = "CONFIGURATION_CHANGE"
+    USER_ACTION = "USER_ACTION"
+    SYSTEM_ERROR = "SYSTEM_ERROR"
 
 class AuditSeverityEnum(enum.Enum):
     """Enum for audit severity levels"""
