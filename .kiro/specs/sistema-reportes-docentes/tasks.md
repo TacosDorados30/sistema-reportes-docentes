@@ -175,6 +175,7 @@
 
 - [x] 15. Optimize for cloud deployment
 
+
   - Configure application for Streamlit Cloud deployment
   - Set up environment variables and secrets management
   - Optimize database queries for performance

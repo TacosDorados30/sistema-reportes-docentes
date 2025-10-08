@@ -1,0 +1,22 @@
+{
+  "admin_users": {
+    "admin": {
+      "password_hash": "93c897af5d2d4cef8d5714acd355529f:04f843996a780332a52f3dbdbac9d28ee4bec83d4bf609c68a6a225ae56a20ab",
+      "name": "Administrador",
+      "email": "admin@universidad.edu.mx",
+      "created_at": "2025-10-08T00:57:05.377195",
+      "active": true
+    }
+  },
+  "session_settings": {
+    "timeout_hours": 8,
+    "require_https": false,
+    "max_failed_attempts": 5,
+    "lockout_duration_minutes": 30
+  },
+  "security_settings": {
+    "password_min_length": 8,
+    "require_special_chars": true,
+    "session_secret": "acf6f5f3d7b0a9ee72c5563c4d7cca6ee1f4ed60524c282c929c2fcba9158f0c"
+  }
+}

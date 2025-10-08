@@ -12,6 +12,29 @@ class MetricsCalculator:
         self.db = db
         self.crud = FormularioCRUD(db)
     
+    def calcular_metricas_trimestrales(self, year: int, quarter: int) -> Dict[str, Any]:
+        """Calcular métricas trimestrales"""
+        try:
+            # Obtener datos básicos
+            stats = self.crud.get_estadisticas_generales()
+            
+            return {
+                'año': year,
+                'trimestre': quarter,
+                'total_formularios': stats.get('total_formularios', 0),
+                'aprobados': stats.get('aprobados', 0),
+                'pendientes': stats.get('pendientes', 0),
+                'rechazados': stats.get('rechazados', 0),
+                'fecha_calculo': datetime.now().isoformat()
+            }
+        except Exception as e:
+            return {
+                'error': str(e),
+                'año': year,
+                'trimestre': quarter,
+                'fecha_calculo': datetime.now().isoformat()
+            }
+    
     def calculate_quarterly_metrics(self, df: pd.DataFrame, quarter: int, year: int) -> Dict[str, Any]:
         """Calculate metrics for a specific quarter"""
         # Filter data for the specified quarter

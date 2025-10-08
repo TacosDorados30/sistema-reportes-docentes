@@ -49,6 +49,32 @@ class FormularioCRUD:
             FormularioEnvioDB.id == formulario_id
         ).first()
     
+    def get_formularios_pendientes(self, skip: int = 0, limit: int = 100) -> List[FormularioEnvioDB]:
+        """Get pending forms"""
+        return self.db.query(FormularioEnvioDB).filter(
+            FormularioEnvioDB.estado == EstadoFormularioEnum.PENDIENTE
+        ).offset(skip).limit(limit).all()
+    
+    def get_estadisticas_generales(self) -> Dict[str, Any]:
+        """Get general statistics"""
+        total_formularios = self.db.query(FormularioEnvioDB).count()
+        pendientes = self.db.query(FormularioEnvioDB).filter(
+            FormularioEnvioDB.estado == EstadoFormularioEnum.PENDIENTE
+        ).count()
+        aprobados = self.db.query(FormularioEnvioDB).filter(
+            FormularioEnvioDB.estado == EstadoFormularioEnum.APROBADO
+        ).count()
+        rechazados = self.db.query(FormularioEnvioDB).filter(
+            FormularioEnvioDB.estado == EstadoFormularioEnum.RECHAZADO
+        ).count()
+        
+        return {
+            "total_formularios": total_formularios,
+            "pendientes": pendientes,
+            "aprobados": aprobados,
+            "rechazados": rechazados
+        }
+    
     def get_formularios_by_estado(
         self, 
         estado: EstadoFormularioEnum, 
