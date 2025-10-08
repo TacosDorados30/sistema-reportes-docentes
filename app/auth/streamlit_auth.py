@@ -5,6 +5,7 @@ Streamlit authentication middleware
 import streamlit as st
 from typing import Optional, Dict, Any
 from .auth_manager import AuthManager
+from app.core.simple_audit import simple_audit
 
 class StreamlitAuth:
     """Streamlit authentication wrapper"""
@@ -73,9 +74,28 @@ class StreamlitAuth:
                     st.session_state.session_id = session_data["session_id"]
                     st.session_state.user_info = session_data
                     
+                    # Log successful login
+                    try:
+                        simple_audit.log_login(
+                            user_id=session_data["username"],
+                            user_name=session_data["name"],
+                            success=True
+                        )
+                    except Exception as e:
+                        print(f"Audit logging failed: {e}")
+                    
                     st.success(f"¡Bienvenido, {session_data['name']}!")
                     st.rerun()
                 else:
+                    # Log failed login attempt
+                    try:
+                        simple_audit.log_login(
+                            user_id=username,
+                            user_name=username,
+                            success=False
+                        )
+                    except Exception as e:
+                        print(f"Audit logging failed: {e}")
                     st.error("Usuario o contraseña incorrectos")
             else:
                 st.error("Por favor, ingrese usuario y contraseña")
@@ -117,8 +137,20 @@ class StreamlitAuth:
     def logout(self):
         """Logout current user"""
         
+        user_info = self.get_current_user()
+        
         if st.session_state.session_id:
             self.auth_manager.logout(st.session_state.session_id)
+        
+        # Log logout
+        if user_info:
+            try:
+                simple_audit.log_logout(
+                    user_id=user_info["username"],
+                    user_name=user_info["name"]
+                )
+            except Exception as e:
+                print(f"Audit logging failed: {e}")
         
         self._clear_session()
         st.success("Sesión cerrada exitosamente")

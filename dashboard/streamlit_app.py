@@ -15,6 +15,8 @@ from app.core.data_processor import DataProcessor
 from app.core.metrics_calculator import MetricsCalculator
 from app.models.database import EstadoFormularioEnum
 from app.auth.streamlit_auth import auth
+from app.core.audit_logger import audit_logger
+from app.core.audit_logger import audit_logger
 
 # Page configuration
 st.set_page_config(
@@ -83,7 +85,28 @@ def approve_form(form_id: int):
     db = SessionLocal()
     try:
         crud = FormularioCRUD(db)
+        
+        # Get form details for logging
+        form = crud.get_formulario(form_id)
+        if not form:
+            return False
+        
         success = crud.aprobar_formulario(form_id, "streamlit_admin")
+        
+        # Log the approval action
+        if success:
+            try:
+                from app.core.simple_audit import simple_audit
+                user_info = auth.get_current_user()
+                if user_info:
+                    simple_audit.log_form_approval(
+                        form_id=form_id,
+                        form_owner=form.nombre_completo,
+                        approved_by=user_info["name"]
+                    )
+            except Exception as e:
+                print(f"Audit logging failed: {e}")
+        
         return success
     finally:
         db.close()
@@ -93,7 +116,29 @@ def reject_form(form_id: int, comment: str = ""):
     db = SessionLocal()
     try:
         crud = FormularioCRUD(db)
+        
+        # Get form details for logging
+        form = crud.get_formulario(form_id)
+        if not form:
+            return False
+        
         success = crud.rechazar_formulario(form_id, "streamlit_admin", comment)
+        
+        # Log the rejection action
+        if success:
+            try:
+                from app.core.simple_audit import simple_audit
+                user_info = auth.get_current_user()
+                if user_info:
+                    simple_audit.log_form_rejection(
+                        form_id=form_id,
+                        form_owner=form.nombre_completo,
+                        rejected_by=user_info["name"],
+                        reason=comment
+                    )
+            except Exception as e:
+                print(f"Audit logging failed: {e}")
+        
         return success
     finally:
         db.close()
@@ -138,7 +183,7 @@ def main():
     st.sidebar.title("Navegación")
     page = st.sidebar.selectbox(
         "Seleccionar página",
-        ["Dashboard Principal", "Revisión de Formularios", "Métricas Detalladas", "Análisis de Datos", "Análisis Avanzado", "Exportar Datos", "Generación de Reportes"]
+        ["Dashboard Principal", "Revisión de Formularios", "Métricas Detalladas", "Análisis de Datos", "Análisis Avanzado", "Exportar Datos", "Generación de Reportes", "Logs de Auditoría"]
     )
     
     # Load data
@@ -166,6 +211,9 @@ def main():
     elif page == "Generación de Reportes":
         from dashboard.pages.report_generation import show_report_generation_page
         show_report_generation_page()
+    elif page == "Logs de Auditoría":
+        from dashboard.pages.audit_logs import show_audit_logs_page
+        show_audit_logs_page()
 
 def show_main_dashboard(all_forms, metrics):
     """Show main dashboard with overview metrics"""

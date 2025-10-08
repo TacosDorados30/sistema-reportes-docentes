@@ -5,6 +5,9 @@ from app.config import settings
 from app.models.database import Base
 import os
 
+# Import audit models to register them with SQLAlchemy
+from app.models import audit
+
 # Create database engine
 if settings.database_url.startswith("sqlite"):
     # SQLite specific configuration
