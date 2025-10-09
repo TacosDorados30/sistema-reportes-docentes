@@ -1,0 +1,22 @@
+[
+  {
+    "id": "2b9ad884ad20",
+    "title": "Reporte Anual de Actividades Docentes 2025",
+    "report_type": "annual",
+    "period_start": "2025-10-08",
+    "period_end": "2025-10-09",
+    "generation_date": "2025-10-09T11:38:18.925097",
+    "file_path": "annual\\2b9ad884ad20.md",
+    "file_size": 2231,
+    "parameters": {
+      "include_trends": true,
+      "include_highlights": true,
+      "report_tone": "professional",
+      "forms_count": 33
+    },
+    "summary": "**Período:** 2025-10-08 - 2025-10-09 | **Fecha de generación:** 2025-10-09 11:38:18 | - **Total de formularios:** 33",
+    "generated_by": "Sistema Automático",
+    "format": "markdown",
+    "status": "completed"
+  }
+]

@@ -12,14 +12,17 @@ import json
 from pathlib import Path
 
 from app.core.performance_monitor import performance_monitor
-from app.auth.streamlit_auth import require_auth
+from app.auth.streamlit_auth import StreamlitAuth
+
+# Initialize auth
+auth = StreamlitAuth()
 
 
 def show_performance_dashboard():
     """Show performance monitoring dashboard"""
     
     # Require authentication
-    if not require_auth():
+    if not auth.require_authentication():
         return
     
     st.title("📊 Dashboard de Rendimiento")

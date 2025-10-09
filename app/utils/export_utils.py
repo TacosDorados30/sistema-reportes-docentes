@@ -5,7 +5,23 @@ Export utilities for data export functionality
 import pandas as pd
 from io import BytesIO, StringIO
 from typing import List
+from datetime import datetime
 from app.models.database import FormularioEnvioDB, EstadoFormularioEnum
+
+
+class DataExporter:
+    """Data exporter class for backward compatibility"""
+    
+    def __init__(self):
+        self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    def export_to_excel(self, forms: List[FormularioEnvioDB]) -> bytes:
+        """Export forms to Excel format"""
+        return export_forms_to_excel(forms)
+    
+    def export_to_csv(self, forms: List[FormularioEnvioDB]) -> str:
+        """Export forms to CSV format"""
+        return export_forms_to_csv(forms)
 
 
 def export_forms_to_excel(forms: List[FormularioEnvioDB]) -> bytes:

@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from app.database.connection import SessionLocal
 from app.database.crud import FormularioCRUD
 from app.models.database import EstadoFormularioEnum
-from app.utils.export_utils import DataExporter
+from app.utils.export_utils import export_forms_to_excel, export_forms_to_csv, DataExporter
 from dashboard.components.interactive_filters import InteractiveFilters
 
 def show_data_export_page():

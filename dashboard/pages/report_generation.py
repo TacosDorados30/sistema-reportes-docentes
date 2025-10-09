@@ -18,7 +18,8 @@ def show_report_generation_page():
     """Report generation page with NLG capabilities"""
 
     # Require authentication
-    from app.auth.streamlit_auth import auth
+    from app.auth.streamlit_auth import StreamlitAuth
+    auth = StreamlitAuth()
     if not auth.require_authentication():
         return
 

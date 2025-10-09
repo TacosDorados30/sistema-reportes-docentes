@@ -12,14 +12,17 @@ import os
 from pathlib import Path
 
 from app.utils.backup_manager import backup_manager
-from app.auth.streamlit_auth import require_auth
+from app.auth.streamlit_auth import StreamlitAuth
+
+# Initialize auth
+auth = StreamlitAuth()
 from app.core.audit_logger import audit_logger
 
 def show_backup_management():
     """Show backup management interface"""
     
     # Require authentication
-    if not require_auth():
+    if not auth.require_authentication():
         return
     
     st.title("🗄️ Gestión de Backups")

@@ -339,12 +339,15 @@ class PerformanceMonitor:
         # Calculate averages
         avg_cpu = sum(m.cpu_percent for m in recent_metrics) / len(recent_metrics)
         avg_memory = sum(m.memory_percent for m in recent_metrics) / len(recent_metrics)
-        avg_response_time = sum(m.response_time_ms for m in recent_metrics if m.response_time_ms) / len([m for m in recent_metrics if m.response_time_ms])
+        
+        # Calculate average response time safely
+        response_times = [m.response_time_ms for m in recent_metrics if m.response_time_ms]
+        avg_response_time = sum(response_times) / len(response_times) if response_times else 0
         
         # Find peaks
         max_cpu = max(m.cpu_percent for m in recent_metrics)
         max_memory = max(m.memory_percent for m in recent_metrics)
-        max_response_time = max(m.response_time_ms for m in recent_metrics if m.response_time_ms) if any(m.response_time_ms for m in recent_metrics) else 0
+        max_response_time = max(response_times) if response_times else 0
         
         return {
             "averages": {
