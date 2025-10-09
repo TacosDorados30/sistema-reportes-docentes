@@ -13,6 +13,7 @@ class AuditActionEnum(enum.Enum):
     """Enum for audit action types"""
     LOGIN = "LOGIN"
     LOGOUT = "LOGOUT"
+    FORM_SUBMISSION = "FORM_SUBMISSION"
     FORM_APPROVAL = "FORM_APPROVAL"
     FORM_REJECTION = "FORM_REJECTION"
     DATA_EXPORT = "DATA_EXPORT"
@@ -25,6 +26,11 @@ class AuditActionEnum(enum.Enum):
     CONFIGURATION_CHANGE = "CONFIGURATION_CHANGE"
     USER_ACTION = "USER_ACTION"
     SYSTEM_ERROR = "SYSTEM_ERROR"
+    BACKUP_CREATED = "BACKUP_CREATED"
+    BACKUP_RESTORED = "BACKUP_RESTORED"
+    BACKUP_DELETED = "BACKUP_DELETED"
+    BACKUP_CLEANUP = "BACKUP_CLEANUP"
+    DATA_IMPORTED = "DATA_IMPORTED"
 
 class AuditSeverityEnum(enum.Enum):
     """Enum for audit severity levels"""

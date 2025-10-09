@@ -131,6 +131,8 @@ class Certificacion(CertificacionBase):
 class FormDataBase(BaseModel):
     nombre_completo: str
     correo_institucional: EmailStr
+    año_academico: int
+    trimestre: str
     cursos_capacitacion: List[CursoCapacitacionBase] = []
     publicaciones: List[PublicacionBase] = []
     eventos_academicos: List[EventoAcademicoBase] = []

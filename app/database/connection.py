@@ -8,6 +8,9 @@ import os
 # Import audit models to register them with SQLAlchemy
 from app.models import audit
 
+# Import database monitoring
+from app.core.database_monitor import db_monitor
+
 # Create database engine
 if settings.database_url.startswith("sqlite"):
     # SQLite specific configuration
@@ -23,6 +26,9 @@ else:
         settings.database_url,
         echo=settings.environment == "development"
     )
+
+# Set up database monitoring
+db_monitor.setup_monitoring(engine)
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

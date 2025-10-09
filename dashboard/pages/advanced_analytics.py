@@ -17,6 +17,11 @@ from dashboard.components.visualizations import InteractiveVisualizations
 def show_advanced_analytics():
     """Show advanced analytics page with interactive visualizations"""
     
+    # Require authentication
+    from app.auth.streamlit_auth import auth
+    if not auth.require_authentication():
+        return
+    
     st.title("📊 Análisis Avanzado")
     st.markdown("Visualizaciones interactivas y análisis profundo de los datos académicos.")
     
@@ -111,6 +116,42 @@ def convert_forms_to_dataframe(forms):
     """Convert forms to DataFrame for analysis"""
     data = []
     for form in forms:
+        # Safely access relationships with try-catch
+        try:
+            total_cursos = len(form.cursos_capacitacion) if hasattr(form, 'cursos_capacitacion') and form.cursos_capacitacion else 0
+        except:
+            total_cursos = 0
+            
+        try:
+            total_publicaciones = len(form.publicaciones) if hasattr(form, 'publicaciones') and form.publicaciones else 0
+        except:
+            total_publicaciones = 0
+            
+        try:
+            total_eventos = len(form.eventos_academicos) if hasattr(form, 'eventos_academicos') and form.eventos_academicos else 0
+        except:
+            total_eventos = 0
+            
+        try:
+            total_disenos = len(form.diseno_curricular) if hasattr(form, 'diseno_curricular') and form.diseno_curricular else 0
+        except:
+            total_disenos = 0
+            
+        try:
+            total_movilidades = len(form.movilidad) if hasattr(form, 'movilidad') and form.movilidad else 0
+        except:
+            total_movilidades = 0
+            
+        try:
+            total_reconocimientos = len(form.reconocimientos) if hasattr(form, 'reconocimientos') and form.reconocimientos else 0
+        except:
+            total_reconocimientos = 0
+            
+        try:
+            total_certificaciones = len(form.certificaciones) if hasattr(form, 'certificaciones') and form.certificaciones else 0
+        except:
+            total_certificaciones = 0
+        
         data.append({
             'id': form.id,
             'nombre_completo': form.nombre_completo,
@@ -119,23 +160,21 @@ def convert_forms_to_dataframe(forms):
             'fecha_envio': form.fecha_envio,
             'fecha_revision': form.fecha_revision,
             'revisado_por': form.revisado_por,
-            'total_cursos': len(form.cursos_capacitacion),
-            'total_publicaciones': len(form.publicaciones),
-            'total_eventos': len(form.eventos_academicos),
-            'total_disenos': len(form.diseno_curricular),
-            'total_movilidades': len(form.movilidad),
-            'total_reconocimientos': len(form.reconocimientos),
-            'total_certificaciones': len(form.certificaciones),
-            'total_items': (
-                len(form.cursos_capacitacion) + len(form.publicaciones) +
-                len(form.eventos_academicos) + len(form.diseno_curricular) +
-                len(form.movilidad) + len(form.reconocimientos) +
-                len(form.certificaciones)
-            )
+            'total_cursos': total_cursos,
+            'total_publicaciones': total_publicaciones,
+            'total_eventos': total_eventos,
+            'total_disenos': total_disenos,
+            'total_movilidades': total_movilidades,
+            'total_reconocimientos': total_reconocimientos,
+            'total_certificaciones': total_certificaciones,
+            'total_items': (total_cursos + total_publicaciones + total_eventos + 
+                          total_disenos + total_movilidades + total_reconocimientos + 
+                          total_certificaciones)
         })
     
-    return pd.DataFrame(data)de
-f show_distribution_charts(viz, metrics, df, chart_types):
+    return pd.DataFrame(data)
+
+def show_distribution_charts(viz, metrics, df, chart_types):
     """Show distribution-based charts"""
     
     if "Sunburst" in chart_types:

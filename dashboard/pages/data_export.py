@@ -16,6 +16,11 @@ from dashboard.components.interactive_filters import InteractiveFilters
 def show_data_export_page():
     """Enhanced data export page with advanced options"""
     
+    # Require authentication
+    from app.auth.streamlit_auth import auth
+    if not auth.require_authentication():
+        return
+    
     st.title("📤 Exportación de Datos")
     st.markdown("Exporte datos del sistema en múltiples formatos con opciones avanzadas de filtrado.")
     
@@ -255,21 +260,54 @@ def create_preview_dataframe(forms):
     
     data = []
     for form in forms:
+        # Safely access relationships
+        try:
+            total_cursos = len(form.cursos_capacitacion) if hasattr(form, 'cursos_capacitacion') and form.cursos_capacitacion else 0
+        except:
+            total_cursos = 0
+            
+        try:
+            total_publicaciones = len(form.publicaciones) if hasattr(form, 'publicaciones') and form.publicaciones else 0
+        except:
+            total_publicaciones = 0
+            
+        try:
+            total_eventos = len(form.eventos_academicos) if hasattr(form, 'eventos_academicos') and form.eventos_academicos else 0
+        except:
+            total_eventos = 0
+            
+        try:
+            total_disenos = len(form.diseno_curricular) if hasattr(form, 'diseno_curricular') and form.diseno_curricular else 0
+        except:
+            total_disenos = 0
+            
+        try:
+            total_movilidades = len(form.movilidad) if hasattr(form, 'movilidad') and form.movilidad else 0
+        except:
+            total_movilidades = 0
+            
+        try:
+            total_reconocimientos = len(form.reconocimientos) if hasattr(form, 'reconocimientos') and form.reconocimientos else 0
+        except:
+            total_reconocimientos = 0
+            
+        try:
+            total_certificaciones = len(form.certificaciones) if hasattr(form, 'certificaciones') and form.certificaciones else 0
+        except:
+            total_certificaciones = 0
+        
         data.append({
             'ID': form.id,
             'Nombre': form.nombre_completo,
             'Email': form.correo_institucional,
             'Estado': form.estado.value,
             'Fecha Envío': form.fecha_envio.strftime('%Y-%m-%d') if form.fecha_envio else '',
-            'Cursos': len(form.cursos_capacitacion),
-            'Publicaciones': len(form.publicaciones),
-            'Eventos': len(form.eventos_academicos),
-            'Total Items': (
-                len(form.cursos_capacitacion) + len(form.publicaciones) +
-                len(form.eventos_academicos) + len(form.diseno_curricular) +
-                len(form.movilidad) + len(form.reconocimientos) +
-                len(form.certificaciones)
-            )
+            'Cursos': total_cursos,
+            'Publicaciones': total_publicaciones,
+            'Eventos': total_eventos,
+            'Total Items': (total_cursos + total_publicaciones + total_eventos + 
+                          total_disenos + total_movilidades + total_reconocimientos + 
+                          total_certificaciones)
         })
     
     return pd.DataFrame(data)

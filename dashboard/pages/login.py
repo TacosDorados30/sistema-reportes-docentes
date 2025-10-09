@@ -22,7 +22,7 @@ def show_login_page():
         st.write("Puede acceder al dashboard desde el menú principal.")
         
         if st.button("Ir al Dashboard"):
-            st.switch_page("dashboard/main.py")
+            st.rerun()
         
         if st.button("Cerrar Sesión"):
             auth.logout()

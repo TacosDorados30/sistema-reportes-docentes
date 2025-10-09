@@ -191,9 +191,25 @@ class StreamlitAuth:
         # Session info
         with st.sidebar.expander("ℹ️ Información de Sesión"):
             st.write(f"**Usuario:** {user_info['username']}")
-            st.write(f"**Inicio:** {user_info['created_at'][:19]}")
-            st.write(f"**Última actividad:** {user_info['last_activity'][:19]}")
-            st.write(f"**Expira:** {user_info['expires_at'][:19]}")
+            
+            # Handle datetime formatting safely
+            created_at = user_info['created_at']
+            if isinstance(created_at, str):
+                st.write(f"**Inicio:** {created_at[:19]}")
+            else:
+                st.write(f"**Inicio:** {created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            last_activity = user_info['last_activity']
+            if isinstance(last_activity, str):
+                st.write(f"**Última actividad:** {last_activity[:19]}")
+            else:
+                st.write(f"**Última actividad:** {last_activity.strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            expires_at = user_info['expires_at']
+            if isinstance(expires_at, str):
+                st.write(f"**Expira:** {expires_at[:19]}")
+            else:
+                st.write(f"**Expira:** {expires_at.strftime('%Y-%m-%d %H:%M:%S')}")
         
         # Logout button
         if st.sidebar.button("🚪 Cerrar Sesión", type="secondary"):

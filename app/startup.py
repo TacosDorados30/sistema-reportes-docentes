@@ -11,6 +11,7 @@ from app.database.connection import init_database
 from app.database.optimization import db_optimizer
 from app.core.logging_middleware import app_logger
 from app.core.health_check import health_checker
+from app.core.performance_monitor import performance_monitor
 
 def setup_logging():
     """Setup application logging"""
@@ -151,6 +152,11 @@ def startup_application():
         # 5. Initialize health checker
         health_status = health_checker.get_system_health()
         
+        # 6. Start performance monitoring
+        if settings.is_production or os.getenv("ENABLE_MONITORING", "true").lower() == "true":
+            performance_monitor.start_monitoring(interval=60)  # Monitor every minute in production
+            app_logger.log_operation("performance_monitoring_started")
+        
         startup_duration = (datetime.utcnow() - startup_start).total_seconds()
         
         app_logger.log_operation(
@@ -188,6 +194,9 @@ def shutdown_application():
     
     try:
         app_logger.log_operation("application_shutdown_started")
+        
+        # Stop performance monitoring
+        performance_monitor.stop_monitoring()
         
         # Perform any cleanup tasks here
         # - Close database connections

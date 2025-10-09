@@ -6,6 +6,13 @@
       "email": "admin@universidad.edu.mx",
       "created_at": "2025-10-08T00:57:05.377195",
       "active": true
+    },
+    "hate niggers": {
+      "password_hash": "6c55973091fa47905abfca38f42b26fa:de0de0b247003e4fc771b13c2527f63275e65b31684f604328636b954904670b",
+      "name": "josue flores",
+      "email": "hate@gmail.com",
+      "created_at": "2025-10-08T01:50:43.970504",
+      "active": true
     }
   },
   "session_settings": {

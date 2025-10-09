@@ -39,6 +39,8 @@ class FormularioEnvioDB(Base):
     id = Column(Integer, primary_key=True, index=True)
     nombre_completo = Column(String(255), nullable=False)
     correo_institucional = Column(String(255), nullable=False)
+    año_academico = Column(Integer, nullable=False)
+    trimestre = Column(String(50), nullable=False)
     estado = Column(Enum(EstadoFormularioEnum), default=EstadoFormularioEnum.PENDIENTE)
     fecha_envio = Column(DateTime, default=datetime.utcnow)
     fecha_revision = Column(DateTime, nullable=True)

@@ -7,7 +7,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, date, timedelta
 import sys
-im
+import os
 
 # Add the project root to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(
@@ -16,6 +16,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(
 
 def show_report_generation_page():
     """Report generation page with NLG capabilities"""
+
+    # Require authentication
+    from app.auth.streamlit_auth import auth
+    if not auth.require_authentication():
+        return
 
     st.title("📄 Generación de Reportes")
     st.markdown(
@@ -174,11 +179,12 @@ def show_report_generation_page():
                 )
 
                 if st.button(f"📄 Exportar como {export_format}"):
-                    export_multiformat_report(
-                        report_generator, filtered_forms, report_type,
-                        period_start, period_end, export_format.lower(),
-                        custom_title, include_highlights, include_metadata=True
-                    )
+                    st.info(f"Función de exportación a {export_format} en desarrollo")
+                    # export_multiformat_report(
+                    #     report_generator, filtered_forms, report_type,
+                    #     period_start, period_end, export_format.lower(),
+                    #     custom_title, include_highlights, include_metadata=True
+                    # )
 
         else:
             st.info("No hay datos disponibles para el período seleccionado.")
@@ -242,30 +248,143 @@ def create_preview_dataframe(forms):
     """Create DataFrame for preview"""
     data = []
     for form in forms:
+        # Safely access relationships
+        try:
+            total_cursos = len(form.cursos_capacitacion) if hasattr(form, 'cursos_capacitacion') and form.cursos_capacitacion else 0
+        except:
+            total_cursos = 0
+            
+        try:
+            total_publicaciones = len(form.publicaciones) if hasattr(form, 'publicaciones') and form.publicaciones else 0
+        except:
+            total_publicaciones = 0
+            
+        try:
+            total_eventos = len(form.eventos_academicos) if hasattr(form, 'eventos_academicos') and form.eventos_academicos else 0
+        except:
+            total_eventos = 0
+        
         data.append({
             'ID': form.id,
             'Docente': form.nombre_completo,
             'Estado': form.estado.value,
             'Fecha': form.fecha_envio.strftime('%Y-%m-%d') if form.fecha_envio else '',
-            'Cursos': len(form.cursos_capacitacion),
-            'Publicaciones': len(form.publicaciones),
-            'Eventos': len(form.eventos_academicos)
+            'Cursos': total_cursos,
+            'Publicaciones': total_publicaciones,
+            'Eventos': total_eventos
         })
 
     return pd.DataFrame(data)
 
 
+def generate_simple_report(forms, title, report_type, period_start, period_end):
+    """Generate a simple text report"""
+    
+    # Calculate basic statistics
+    total_forms = len(forms)
+    approved_forms = [f for f in forms if f.estado.value == 'APROBADO']
+    pending_forms = [f for f in forms if f.estado.value == 'PENDIENTE']
+    rejected_forms = [f for f in forms if f.estado.value == 'RECHAZADO']
+    
+    # Calculate activity summary
+    activity_summary = calculate_activity_summary(forms)
+    
+    # Generate report content
+    report_lines = [
+        f"# {title}",
+        "",
+        f"**Período:** {period_start.strftime('%Y-%m-%d')} - {period_end.strftime('%Y-%m-%d')}",
+        f"**Fecha de generación:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "",
+        "## Resumen Ejecutivo",
+        "",
+        f"- **Total de formularios:** {total_forms}",
+        f"- **Formularios aprobados:** {len(approved_forms)}",
+        f"- **Formularios pendientes:** {len(pending_forms)}",
+        f"- **Formularios rechazados:** {len(rejected_forms)}",
+        "",
+        "## Actividades Académicas",
+        "",
+        f"- **Cursos de capacitación:** {activity_summary['cursos']}",
+        f"- **Publicaciones:** {activity_summary['publicaciones']}",
+        f"- **Eventos académicos:** {activity_summary['eventos']}",
+        f"- **Total de horas de capacitación:** {activity_summary['horas']}",
+        "",
+        "## Detalles por Docente",
+        ""
+    ]
+    
+    # Add details for each approved form
+    for i, form in enumerate(approved_forms[:10], 1):  # Limit to first 10
+        try:
+            cursos_count = len(form.cursos_capacitacion) if hasattr(form, 'cursos_capacitacion') and form.cursos_capacitacion else 0
+        except:
+            cursos_count = 0
+            
+        try:
+            pub_count = len(form.publicaciones) if hasattr(form, 'publicaciones') and form.publicaciones else 0
+        except:
+            pub_count = 0
+            
+        try:
+            eventos_count = len(form.eventos_academicos) if hasattr(form, 'eventos_academicos') and form.eventos_academicos else 0
+        except:
+            eventos_count = 0
+        
+        periodo = f"{form.año_academico} - {form.trimestre}" if hasattr(form, 'año_academico') and hasattr(form, 'trimestre') else "N/A"
+        
+        report_lines.extend([
+            f"### {i}. {form.nombre_completo}",
+            f"- **Email:** {form.correo_institucional}",
+            f"- **Período:** {periodo}",
+            f"- **Cursos:** {cursos_count}",
+            f"- **Publicaciones:** {pub_count}",
+            f"- **Eventos:** {eventos_count}",
+            ""
+        ])
+    
+    if len(approved_forms) > 10:
+        report_lines.append(f"*... y {len(approved_forms) - 10} docentes más*")
+    
+    report_lines.extend([
+        "",
+        "---",
+        "",
+        f"*Reporte generado automáticamente por el Sistema de Reportes Docentes*",
+        f"*Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*"
+    ])
+    
+    return "\n".join(report_lines)
+
 def calculate_activity_summary(forms):
     """Calculate activity summary for approved forms"""
     approved_forms = [f for f in forms if f.estado.value == 'APROBADO']
 
-    total_cursos = sum(len(f.cursos_capacitacion) for f in approved_forms)
-    total_publicaciones = sum(len(f.publicaciones) for f in approved_forms)
-    total_eventos = sum(len(f.eventos_academicos) for f in approved_forms)
-    total_horas = sum(
-        sum(c.horas for c in f.cursos_capacitacion if c.horas)
-        for f in approved_forms
-    )
+    total_cursos = 0
+    total_publicaciones = 0
+    total_eventos = 0
+    total_horas = 0
+    
+    for f in approved_forms:
+        # Safely access relationships
+        try:
+            cursos = f.cursos_capacitacion if hasattr(f, 'cursos_capacitacion') and f.cursos_capacitacion else []
+            total_cursos += len(cursos)
+            total_horas += sum(c.horas for c in cursos if hasattr(c, 'horas') and c.horas)
+        except:
+            pass
+            
+        try:
+            publicaciones = f.publicaciones if hasattr(f, 'publicaciones') and f.publicaciones else []
+            total_publicaciones += len(publicaciones)
+        except:
+            pass
+            
+        try:
+            eventos = f.eventos_academicos if hasattr(f, 'eventos_academicos') and f.eventos_academicos else []
+            total_eventos += len(eventos)
+        except:
+            pass
 
     return {
         'cursos': total_cursos,
@@ -295,20 +414,8 @@ def generate_and_display_report(report_generator, history_manager, forms,
                 else:
                     title = f"Reporte de Datos {period_start.strftime('%B %Y')}"
 
-            # Generate report based on type
-            if report_type == "annual":
-                report_content = report_generator.generate_annual_report(
-                    forms, period_start, period_end, include_trends
-                )
-            elif report_type == "quarterly":
-                quarter = ((period_start.month - 1) // 3) + 1
-                report_content = report_generator.generate_quarterly_report(
-                    forms, quarter, period_start.year
-                )
-            else:  # data_table
-                report_content = report_generator.generate_data_table_report(
-                    forms, title, period_start, period_end
-                )
+            # Generate simple report content
+            report_content = generate_simple_report(forms, title, report_type, period_start, period_end)
 
             # Customize tone if needed
             if report_tone != "professional":
@@ -438,7 +545,7 @@ def show_report_history(history_manager):
                 if st.button("🗑️ Eliminar", key=f"delete_{report['id']}"):
                     if history_manager.delete_report(report['id']):
                         st.success("Reporte eliminado")
-                        st.experimental_rerun()
+                        st.rerun()
 
 
 def show_storage_statistics(history_manager):

@@ -289,10 +289,6 @@ def reject_form(form_id: int, comment: str = ""):
         return False
     finally:
         db.close()
-        
-        return success
-    finally:
-        db.close()
 
 def main():
     """Main dashboard application"""
@@ -334,7 +330,7 @@ def main():
     st.sidebar.title("Navegación")
     page = st.sidebar.selectbox(
         "Seleccionar página",
-        ["Dashboard Principal", "Revisión de Formularios", "Métricas Detalladas", "Análisis de Datos", "Análisis Avanzado", "Exportar Datos", "Generación de Reportes", "Logs de Auditoría"]
+        ["Dashboard Principal", "Revisión de Formularios", "Métricas Detalladas", "Análisis de Datos", "Análisis Avanzado", "Exportar Datos", "Generación de Reportes", "Logs de Auditoría", "Gestión de Backups", "Monitoreo de Rendimiento"]
     )
     
     # Load data
@@ -365,6 +361,12 @@ def main():
     elif page == "Logs de Auditoría":
         from dashboard.pages.audit_logs import show_audit_logs_page
         show_audit_logs_page()
+    elif page == "Gestión de Backups":
+        from dashboard.pages.backup_management import show_backup_management
+        show_backup_management()
+    elif page == "Monitoreo de Rendimiento":
+        from dashboard.pages.performance_dashboard import show_performance_dashboard
+        show_performance_dashboard()
 
 def show_main_dashboard(all_forms, metrics):
     """Show main dashboard with overview metrics"""
@@ -466,6 +468,7 @@ def show_main_dashboard(all_forms, metrics):
                 'ID': form.id,
                 'Nombre': form.nombre_completo,
                 'Email': form.correo_institucional,
+                'Período': f"{form.año_academico} - {form.trimestre}" if hasattr(form, 'año_academico') and hasattr(form, 'trimestre') else "N/A",
                 'Estado': form.estado.value,
                 'Fecha Envío': form.fecha_envio.strftime("%Y-%m-%d %H:%M") if form.fecha_envio else "N/A",
                 'Revisado por': form.revisado_por or "N/A"
@@ -483,7 +486,7 @@ def show_main_dashboard(all_forms, metrics):
                 return 'color: #f44336'
             return ''
         
-        styled_df = df_recent.style.applymap(style_status, subset=['Estado'])
+        styled_df = df_recent.style.map(style_status, subset=['Estado'])
         st.dataframe(styled_df, use_container_width=True)
     else:
         st.info("No hay formularios registrados aún.")
@@ -522,6 +525,7 @@ def show_form_review():
             st.write("**Información Personal:**")
             st.write(f"- **Nombre:** {selected_form.nombre_completo}")
             st.write(f"- **Email:** {selected_form.correo_institucional}")
+            st.write(f"- **Período:** {selected_form.año_academico} - {selected_form.trimestre}" if hasattr(selected_form, 'año_academico') else "- **Período:** N/A")
             st.write(f"- **Fecha de envío:** {selected_form.fecha_envio.strftime('%Y-%m-%d %H:%M')}")
         
         with col2:

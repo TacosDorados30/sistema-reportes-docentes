@@ -12,6 +12,11 @@ from app.models.database import EstadoFormularioEnum
 def show_form_review_page():
     """Dedicated page for form review with enhanced functionality"""
     
+    # Require authentication
+    from app.auth.streamlit_auth import auth
+    if not auth.require_authentication():
+        return
+    
     st.title("📋 Revisión Detallada de Formularios")
     
     # Get pending forms
