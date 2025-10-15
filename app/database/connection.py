@@ -9,7 +9,7 @@ import os
 from app.models import audit
 
 # Import database monitoring
-from app.core.database_monitor import db_monitor
+# from app.core.database_monitor import db_monitor  # Removed for optimization
 
 # Create database engine
 if settings.database_url.startswith("sqlite"):
@@ -27,8 +27,7 @@ else:
         echo=settings.environment == "development"
     )
 
-# Set up database monitoring
-db_monitor.setup_monitoring(engine)
+# Database monitoring removed for optimization
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

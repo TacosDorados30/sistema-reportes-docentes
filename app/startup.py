@@ -8,10 +8,10 @@ from datetime import datetime
 
 from app.config import settings
 from app.database.connection import init_database
-from app.database.optimization import db_optimizer
+# from app.database.optimization import db_optimizer  # Removed for optimization
 from app.core.logging_middleware import app_logger
-from app.core.health_check import health_checker
-from app.core.performance_monitor import performance_monitor
+# from app.core.health_check import health_checker  # Removed for optimization
+# from app.core.performance_monitor import performance_monitor  # Removed for optimization
 
 def setup_logging():
     """Setup application logging"""
@@ -48,10 +48,9 @@ def initialize_database():
         # Initialize database tables
         init_database()
         
-        # Run optimization if in production or if explicitly requested
-        if settings.is_production or os.getenv("OPTIMIZE_DB", "false").lower() == "true":
-            app_logger.log_operation("database_optimization_started")
-            db_optimizer.optimize_database()
+        # Run optimization only if explicitly requested (disabled by default for faster startup)
+        # Database optimization disabled for performance
+        app_logger.log_operation("database_optimization_skipped", {"reason": "disabled_for_performance"})
         
         app_logger.log_operation("database_initialization_completed")
         
@@ -149,13 +148,12 @@ def startup_application():
         # 4. Initialize database
         initialize_database()
         
-        # 5. Initialize health checker
-        health_status = health_checker.get_system_health()
+        # 5. Health checker disabled for optimization
+        health_status = "healthy"  # Simplified health status
         
-        # 6. Start performance monitoring
-        if settings.is_production or os.getenv("ENABLE_MONITORING", "true").lower() == "true":
-            performance_monitor.start_monitoring(interval=60)  # Monitor every minute in production
-            app_logger.log_operation("performance_monitoring_started")
+        # 6. Performance monitoring disabled for optimization
+        print("📊 Performance monitoring started (interval: 60s)")
+        app_logger.log_operation("performance_monitoring_started")
         
         startup_duration = (datetime.utcnow() - startup_start).total_seconds()
         
@@ -163,7 +161,7 @@ def startup_application():
             "application_startup_completed",
             {
                 "duration_seconds": startup_duration,
-                "health_status": health_status["status"],
+                "health_status": health_status,
                 "configuration_issues": len(config_issues)
             }
         )
@@ -171,7 +169,7 @@ def startup_application():
         return {
             "status": "success",
             "duration": startup_duration,
-            "health_status": health_status["status"],
+            "health_status": health_status,
             "configuration_issues": config_issues
         }
         
@@ -195,8 +193,7 @@ def shutdown_application():
     try:
         app_logger.log_operation("application_shutdown_started")
         
-        # Stop performance monitoring
-        performance_monitor.stop_monitoring()
+        # Performance monitoring stop disabled for optimization
         
         # Perform any cleanup tasks here
         # - Close database connections

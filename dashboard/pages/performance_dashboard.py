@@ -11,22 +11,35 @@ from datetime import datetime, timedelta
 import json
 from pathlib import Path
 
-from app.core.performance_monitor import performance_monitor
-from app.auth.streamlit_auth import StreamlitAuth
+# Initialize auth first
+from app.auth.streamlit_auth import auth
 
-# Initialize auth
-auth = StreamlitAuth()
+# Try to import performance monitor with error handling
+try:
+    from app.core.performance_monitor import performance_monitor
+    PERFORMANCE_AVAILABLE = True
+except Exception as e:
+    PERFORMANCE_AVAILABLE = False
+    PERFORMANCE_ERROR = str(e)
 
 
 def show_performance_dashboard():
     """Show performance monitoring dashboard"""
     
     # Require authentication
-    if not auth.require_authentication():
+    if not auth.is_authenticated():
+        auth.show_login_form()
         return
     
     st.title("📊 Dashboard de Rendimiento")
     st.markdown("Monitoreo en tiempo real del rendimiento del sistema")
+    
+    # Check if performance monitoring is available
+    if not PERFORMANCE_AVAILABLE:
+        st.error(f"❌ Sistema de monitoreo no disponible: {PERFORMANCE_ERROR}")
+        st.info("💡 El sistema de monitoreo requiere configuración adicional.")
+        show_performance_info_only()
+        return
     
     # Control buttons
     col1, col2, col3 = st.columns([1, 1, 2])
@@ -644,6 +657,71 @@ def show_performance_configuration():
                 mime="application/json"
             )
 
+
+def show_performance_info_only():
+    """Show performance information when system is not available"""
+    
+    st.subheader("📊 Información de Monitoreo de Rendimiento")
+    
+    st.markdown("""
+    ### ¿Qué es el Monitoreo de Rendimiento?
+    
+    El sistema de monitoreo de rendimiento rastrea:
+    
+    - **CPU y Memoria**: Uso de recursos del servidor
+    - **Tiempo de Respuesta**: Velocidad de las operaciones
+    - **Base de Datos**: Rendimiento de consultas
+    - **Alertas**: Notificaciones de problemas
+    
+    ### Métricas Básicas Disponibles
+    """)
+    
+    try:
+        import psutil
+        
+        # Show basic system metrics
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            cpu_percent = psutil.cpu_percent(interval=1)
+            st.metric("CPU Actual", f"{cpu_percent:.1f}%")
+        
+        with col2:
+            memory = psutil.virtual_memory()
+            st.metric("Memoria", f"{memory.percent:.1f}%")
+        
+        with col3:
+            disk = psutil.disk_usage('.')
+            st.metric("Disco", f"{disk.percent:.1f}%")
+        
+        # Show database info
+        st.subheader("📊 Información de Base de Datos")
+        
+        from app.database.connection import SessionLocal
+        from app.database.crud import FormularioCRUD
+        
+        db = SessionLocal()
+        crud = FormularioCRUD(db)
+        
+        stats = crud.get_estadisticas_generales()
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Total Formularios", stats.get("total_formularios", 0))
+        
+        with col2:
+            st.metric("Formularios Aprobados", stats.get("formularios_aprobados", 0))
+        
+        with col3:
+            st.metric("Formularios Pendientes", stats.get("formularios_pendientes", 0))
+        
+        db.close()
+        
+    except Exception as e:
+        st.warning(f"No se pudieron obtener métricas básicas: {e}")
+    
+    st.info("💡 Para monitoreo completo, contacte al administrador del sistema.")
 
 if __name__ == "__main__":
     show_performance_dashboard()

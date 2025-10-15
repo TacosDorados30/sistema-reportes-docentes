@@ -11,22 +11,42 @@ import tempfile
 import os
 from pathlib import Path
 
-from app.utils.backup_manager import backup_manager
-from app.auth.streamlit_auth import StreamlitAuth
+# Initialize auth first
+from app.auth.streamlit_auth import auth
 
-# Initialize auth
-auth = StreamlitAuth()
-from app.core.audit_logger import audit_logger
+# Try to import backup manager with error handling
+try:
+    from app.utils.backup_manager import backup_manager
+    BACKUP_AVAILABLE = True
+except Exception as e:
+    BACKUP_AVAILABLE = False
+    BACKUP_ERROR = str(e)
+
+try:
+    from app.core.audit_logger import audit_logger
+    AUDIT_AVAILABLE = True
+except Exception as e:
+    AUDIT_AVAILABLE = False
 
 def show_backup_management():
     """Show backup management interface"""
     
     # Require authentication
-    if not auth.require_authentication():
+    if not auth.is_authenticated():
+        auth.show_login_form()
         return
     
     st.title("🗄️ Gestión de Backups")
     st.markdown("Administra los backups de la base de datos y recuperación de datos")
+    
+    # Check if backup system is available
+    if not BACKUP_AVAILABLE:
+        st.error(f"❌ Sistema de backup no disponible: {BACKUP_ERROR}")
+        st.info("💡 El sistema de backup requiere configuración adicional.")
+        
+        # Show basic backup information
+        show_backup_info_only()
+        return
     
     # Create tabs for different backup operations
     tab1, tab2, tab3, tab4 = st.tabs([
@@ -47,6 +67,86 @@ def show_backup_management():
     
     with tab4:
         show_import_data_section()
+
+def show_backup_info_only():
+    """Show backup information when system is not available"""
+    
+    st.subheader("📋 Información de Backup")
+    
+    st.markdown("""
+    ### ¿Qué son los Backups?
+    
+    Los backups son copias de seguridad de tu base de datos que incluyen:
+    
+    - **Base de datos completa**: Todos los formularios y datos
+    - **Configuración**: Ajustes del sistema
+    - **Exportación JSON**: Datos en formato portable
+    - **Metadatos**: Información sobre el backup
+    
+    ### ¿Por qué son importantes?
+    
+    - 🛡️ **Protección de datos**: Evita pérdida de información
+    - 🔄 **Recuperación**: Restaura el sistema en caso de problemas
+    - 📊 **Migración**: Transfiere datos entre sistemas
+    - 📈 **Historial**: Mantiene versiones anteriores
+    
+    ### Backup Manual
+    
+    Mientras el sistema automático no esté disponible, puedes hacer backup manual:
+    """)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        **Opción 1: Exportar Datos**
+        1. Ve a "Exportar Datos"
+        2. Selecciona formato Excel o CSV
+        3. Descarga todos los formularios
+        """)
+    
+    with col2:
+        st.markdown("""
+        **Opción 2: Copia Manual**
+        1. Localiza el archivo `data/sistema_reportes.db`
+        2. Copia el archivo a ubicación segura
+        3. Incluye fecha en el nombre del archivo
+        """)
+    
+    # Show current database info
+    st.subheader("📊 Información Actual")
+    
+    try:
+        from app.database.connection import SessionLocal
+        from app.database.crud import FormularioCRUD
+        
+        db = SessionLocal()
+        crud = FormularioCRUD(db)
+        
+        # Get basic stats
+        stats = crud.get_estadisticas_generales()
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Total Formularios", stats.get("total_formularios", 0))
+        
+        with col2:
+            st.metric("Formularios Aprobados", stats.get("formularios_aprobados", 0))
+        
+        with col3:
+            st.metric("Formularios Pendientes", stats.get("formularios_pendientes", 0))
+        
+        db.close()
+        
+    except Exception as e:
+        st.warning(f"No se pudo obtener estadísticas: {e}")
+    
+    # Manual backup button
+    st.subheader("🔧 Acciones Disponibles")
+    
+    if st.button("📥 Ir a Exportar Datos"):
+        st.switch_page("dashboard/pages/data_export.py")
 
 def show_create_backup_section():
     """Show backup creation interface"""
@@ -77,48 +177,72 @@ def show_create_backup_section():
 def create_backup_action(include_data: bool):
     """Execute backup creation"""
     
-    with st.spinner("Creando backup..."):
-        result = backup_manager.create_backup(include_data=include_data)
+    if not BACKUP_AVAILABLE:
+        st.error("Sistema de backup no disponible")
+        return
     
-    if result["success"]:
-        st.success(f"✅ Backup creado exitosamente!")
+    try:
+        with st.spinner("Creando backup..."):
+            result = backup_manager.create_backup(include_data=include_data)
         
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Nombre del backup", result["backup_name"])
-            st.metric("Tamaño", f"{result['size_mb']} MB")
-        
-        with col2:
-            st.metric("Timestamp", result["timestamp"])
-            st.metric("Ruta", result["backup_path"])
-        
-        # Log the action
-        audit_logger.log_action(
-            action="BACKUP_CREATED",
-            user_id=st.session_state.get("user_id", "admin"),
-            details={
-                "backup_name": result["backup_name"],
-                "size_mb": result["size_mb"],
-                "include_data": include_data
-            }
-        )
-        
-        # Auto-refresh the backup list
-        st.rerun()
-        
-    else:
-        st.error(f"❌ Error al crear backup: {result['error']}")
+        if result["success"]:
+            st.success(f"✅ Backup creado exitosamente!")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Nombre del backup", result["backup_name"])
+                st.metric("Tamaño", f"{result['size_mb']} MB")
+            
+            with col2:
+                st.metric("Timestamp", result["timestamp"])
+                st.metric("Ruta", result["backup_path"])
+            
+            # Log the action if available
+            if AUDIT_AVAILABLE:
+                try:
+                    from app.core.audit_logger import AuditActionEnum
+                    audit_logger.log_action(
+                        action=AuditActionEnum.BACKUP_CREATED,
+                        description=f"Backup created: {result['backup_name']}",
+                        user_id=auth.get_current_user().get("username") if auth.get_current_user() else "admin",
+                        user_name=auth.get_current_user().get("name") if auth.get_current_user() else "Admin",
+                        metadata={
+                            "backup_name": result["backup_name"],
+                            "size_mb": result["size_mb"],
+                            "include_data": include_data
+                        }
+                    )
+                except Exception as e:
+                    st.warning(f"No se pudo registrar en auditoría: {e}")
+            
+            # Auto-refresh the backup list
+            st.rerun()
+            
+        else:
+            st.error(f"❌ Error al crear backup: {result['error']}")
+            
+    except Exception as e:
+        st.error(f"❌ Error inesperado al crear backup: {str(e)}")
 
 def show_backup_list_section():
     """Show list of available backups"""
     
     st.header("Lista de Backups Disponibles")
     
-    # Get backup list
-    backups = backup_manager.list_backups()
+    if not BACKUP_AVAILABLE:
+        st.error("Sistema de backup no disponible")
+        return
     
-    if not backups:
-        st.info("📭 No hay backups disponibles. Crea tu primer backup en la pestaña anterior.")
+    try:
+        # Get backup list
+        backups = backup_manager.list_backups()
+        
+        if not backups:
+            st.info("📭 No hay backups disponibles. Crea tu primer backup en la pestaña anterior.")
+            return
+            
+    except Exception as e:
+        st.error(f"Error al obtener lista de backups: {str(e)}")
         return
     
     # Show backup statistics
@@ -149,13 +273,24 @@ def show_backup_list_section():
         for backup in backups
     ])
     
-    # Display table with selection
-    selected_indices = st.dataframe(
-        backup_df,
-        use_container_width=True,
-        selection_mode="single-row",
-        on_select="rerun"
-    )
+    # Display table
+    st.dataframe(backup_df, use_container_width=True)
+    
+    # Selection using selectbox instead
+    if len(backups) > 0:
+        backup_names = [f"{backup['name']} ({backup['created'].strftime('%d/%m/%Y %H:%M')})" for backup in backups]
+        selected_backup_name = st.selectbox(
+            "Seleccionar backup para acciones:",
+            ["Ninguno"] + backup_names,
+            key="backup_selector"
+        )
+        
+        selected_indices = None
+        if selected_backup_name != "Ninguno":
+            selected_idx = backup_names.index(selected_backup_name)
+            selected_indices = type('obj', (object,), {
+                'selection': type('obj', (object,), {'rows': [selected_idx]})()
+            })()
     
     # Action buttons for selected backup
     if selected_indices and len(selected_indices.selection.rows) > 0:
@@ -325,6 +460,10 @@ def show_restore_backup_section():
     
     st.header("Restaurar desde Backup")
     
+    if not BACKUP_AVAILABLE:
+        st.error("Sistema de backup no disponible")
+        return
+    
     st.warning("""
     ⚠️ **ADVERTENCIA**: Restaurar un backup reemplazará completamente la base de datos actual.
     
@@ -334,11 +473,16 @@ def show_restore_backup_section():
     3. Esta acción no se puede deshacer fácilmente
     """)
     
-    # Get available backups
-    backups = backup_manager.list_backups()
-    
-    if not backups:
-        st.info("📭 No hay backups disponibles para restaurar.")
+    try:
+        # Get available backups
+        backups = backup_manager.list_backups()
+        
+        if not backups:
+            st.info("📭 No hay backups disponibles para restaurar.")
+            return
+            
+    except Exception as e:
+        st.error(f"Error al obtener backups: {str(e)}")
         return
     
     # Select backup to restore
@@ -410,6 +554,11 @@ def show_import_data_section():
     """Show data import interface"""
     
     st.header("Importar Datos desde JSON")
+    
+    if not BACKUP_AVAILABLE:
+        st.error("Sistema de backup no disponible")
+        st.info("💡 Usa la función 'Exportar Datos' para crear archivos de respaldo manuales.")
+        return
     
     st.info("""
     📋 **Importación de Datos**

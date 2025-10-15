@@ -19,7 +19,8 @@ def show_advanced_analytics():
     
     # Require authentication
     from app.auth.streamlit_auth import auth
-    if not auth.require_authentication():
+    if not auth.is_authenticated():
+        auth.show_login_form()
         return
     
     st.title("📊 Análisis Avanzado")

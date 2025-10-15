@@ -1,17 +1,10 @@
 {
   "admin_users": {
     "admin": {
-      "password_hash": "93c897af5d2d4cef8d5714acd355529f:04f843996a780332a52f3dbdbac9d28ee4bec83d4bf609c68a6a225ae56a20ab",
+      "password_hash": "180eebfcf6bec0aed4577215105319b8:a8e5d22dce8596f141aa70df81940528c996b3cebbb5dae4147560d57922594c",
       "name": "Administrador",
       "email": "admin@universidad.edu.mx",
-      "created_at": "2025-10-08T00:57:05.377195",
-      "active": true
-    },
-    "hate niggers": {
-      "password_hash": "6c55973091fa47905abfca38f42b26fa:de0de0b247003e4fc771b13c2527f63275e65b31684f604328636b954904670b",
-      "name": "josue flores",
-      "email": "hate@gmail.com",
-      "created_at": "2025-10-08T01:50:43.970504",
+      "created_at": "2025-10-15T11:56:01.733600",
       "active": true
     }
   },
@@ -24,6 +17,6 @@
   "security_settings": {
     "password_min_length": 8,
     "require_special_chars": true,
-    "session_secret": "acf6f5f3d7b0a9ee72c5563c4d7cca6ee1f4ed60524c282c929c2fcba9158f0c"
+    "session_secret": "120577c341d6e1bdff0b8e7c7249ec93dbaacdd8aa2b52a42d677e6edff1ad29"
   }
 }

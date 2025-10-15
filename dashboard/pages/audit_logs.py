@@ -16,7 +16,8 @@ def show_audit_logs_page():
     """Show audit logs page with filtering and analysis"""
     
     # Require authentication
-    if not auth.require_authentication():
+    if not auth.is_authenticated():
+        auth.show_login_form()
         return
     
     st.title("📋 Logs de Auditoría")
@@ -198,16 +199,19 @@ def show_detailed_logs(audit_logger: AuditLogger, start_date: date, end_date: da
         user_id_filter = user_filter.strip() if user_filter.strip() else None
         resource_type_filter = resource_filter.strip() if resource_filter.strip() else None
         
-        # Get logs
+        # Get logs (without resource_type parameter)
         logs = audit_logger.get_audit_logs(
             limit=limit,
             user_id=user_id_filter,
             action=action_filter,
             severity=severity_filter,
             start_date=start_datetime,
-            end_date=end_datetime,
-            resource_type=resource_type_filter
+            end_date=end_datetime
         )
+        
+        # Filter by resource type if specified
+        if resource_type_filter:
+            logs = [log for log in logs if log.get('resource_type') == resource_type_filter]
         
         if not logs:
             st.info("No se encontraron logs con los filtros aplicados.")
@@ -218,22 +222,42 @@ def show_detailed_logs(audit_logger: AuditLogger, start_date: date, end_date: da
         # Convert to DataFrame
         logs_data = []
         for log in logs:
-            log_entry = {
-                "ID": log.id,
-                "Timestamp": log.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-                "Acción": log.action.value,
-                "Severidad": log.severity.value,
-                "Usuario": log.user_name or log.user_id or "Sistema",
-                "Descripción": log.description,
-                "Recurso": f"{log.resource_type}#{log.resource_id}" if log.resource_type and log.resource_id else "",
-                "IP": log.ip_address or "",
-            }
-            
-            if show_metadata and log.metadata:
-                log_entry["Metadatos"] = log.metadata
-            
-            if log.error_message:
-                log_entry["Error"] = log.error_message
+            # Handle both dict and object formats
+            if isinstance(log, dict):
+                log_entry = {
+                    "ID": log.get('id', ''),
+                    "Timestamp": log.get('timestamp', '').strftime("%Y-%m-%d %H:%M:%S") if isinstance(log.get('timestamp'), datetime) else str(log.get('timestamp', '')),
+                    "Acción": log.get('action', ''),
+                    "Severidad": log.get('severity', ''),
+                    "Usuario": log.get('user_name') or log.get('user_id') or "Sistema",
+                    "Descripción": log.get('description', ''),
+                    "Recurso": f"{log.get('resource_type', '')}#{log.get('resource_id', '')}" if log.get('resource_type') and log.get('resource_id') else "",
+                    "IP": log.get('ip_address', ''),
+                }
+                
+                if show_metadata and log.get('extra_data'):
+                    log_entry["Metadatos"] = log.get('extra_data')
+                
+                if log.get('error_message'):
+                    log_entry["Error"] = log.get('error_message')
+            else:
+                # Handle object format (if any)
+                log_entry = {
+                    "ID": getattr(log, 'id', ''),
+                    "Timestamp": getattr(log, 'timestamp', '').strftime("%Y-%m-%d %H:%M:%S") if hasattr(log, 'timestamp') and log.timestamp else '',
+                    "Acción": getattr(log, 'action', '').value if hasattr(getattr(log, 'action', None), 'value') else str(getattr(log, 'action', '')),
+                    "Severidad": getattr(log, 'severity', '').value if hasattr(getattr(log, 'severity', None), 'value') else str(getattr(log, 'severity', '')),
+                    "Usuario": getattr(log, 'user_name', '') or getattr(log, 'user_id', '') or "Sistema",
+                    "Descripción": getattr(log, 'description', ''),
+                    "Recurso": f"{getattr(log, 'resource_type', '')}#{getattr(log, 'resource_id', '')}" if getattr(log, 'resource_type', None) and getattr(log, 'resource_id', None) else "",
+                    "IP": getattr(log, 'ip_address', ''),
+                }
+                
+                if show_metadata and getattr(log, 'extra_data', None):
+                    log_entry["Metadatos"] = getattr(log, 'extra_data')
+                
+                if getattr(log, 'error_message', None):
+                    log_entry["Error"] = getattr(log, 'error_message')
             
             logs_data.append(log_entry)
         
@@ -303,17 +327,54 @@ def show_audit_analysis(audit_logger: AuditLogger, start_date: date, end_date: d
             return
         
         # Convert to DataFrame for analysis
-        logs_df = pd.DataFrame([{
-            "timestamp": log.timestamp,
-            "action": log.action.value,
-            "severity": log.severity.value,
-            "user_id": log.user_id,
-            "user_name": log.user_name,
-            "resource_type": log.resource_type,
-            "hour": log.timestamp.hour,
-            "day_of_week": log.timestamp.weekday(),
-            "date": log.timestamp.date()
-        } for log in logs])
+        logs_data = []
+        for log in logs:
+            try:
+                # Handle both dict and object formats
+                if isinstance(log, dict):
+                    timestamp = log.get('timestamp')
+                    if isinstance(timestamp, str):
+                        timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    elif not isinstance(timestamp, datetime):
+                        continue  # Skip invalid timestamps
+                    
+                    logs_data.append({
+                        "timestamp": timestamp,
+                        "action": log.get('action', ''),
+                        "severity": log.get('severity', ''),
+                        "user_id": log.get('user_id', ''),
+                        "user_name": log.get('user_name', ''),
+                        "resource_type": log.get('resource_type', ''),
+                        "hour": timestamp.hour,
+                        "day_of_week": timestamp.weekday(),
+                        "date": timestamp.date()
+                    })
+                else:
+                    # Handle object format
+                    timestamp = getattr(log, 'timestamp', None)
+                    if not isinstance(timestamp, datetime):
+                        continue  # Skip invalid timestamps
+                    
+                    logs_data.append({
+                        "timestamp": timestamp,
+                        "action": getattr(log, 'action', '').value if hasattr(getattr(log, 'action', None), 'value') else str(getattr(log, 'action', '')),
+                        "severity": getattr(log, 'severity', '').value if hasattr(getattr(log, 'severity', None), 'value') else str(getattr(log, 'severity', '')),
+                        "user_id": getattr(log, 'user_id', ''),
+                        "user_name": getattr(log, 'user_name', ''),
+                        "resource_type": getattr(log, 'resource_type', ''),
+                        "hour": timestamp.hour,
+                        "day_of_week": timestamp.weekday(),
+                        "date": timestamp.date()
+                    })
+            except Exception as e:
+                # Skip problematic log entries
+                continue
+        
+        if not logs_data:
+            st.info("No hay datos válidos para el análisis.")
+            return
+        
+        logs_df = pd.DataFrame(logs_data)
         
         # Time-based analysis
         col1, col2 = st.columns(2)
