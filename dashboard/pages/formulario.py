@@ -9,7 +9,6 @@ from app.models.schemas import FormData
 from app.database.crud import FormularioCRUD
 from app.database.connection import SessionLocal
 from app.utils.correction_tokens import CorrectionTokenManager
-from app.utils.form_corrections import FormCorrectionManager
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
@@ -143,26 +142,86 @@ def show_personal_info():
     """Show personal information section"""
     st.header("👤 Información Personal")
 
+    # Obtener lista de maestros autorizados
+    db = SessionLocal()
+    try:
+        from app.database.crud import MaestroAutorizadoCRUD
+        maestros_crud = MaestroAutorizadoCRUD(db)
+        maestros_options = maestros_crud.get_maestros_options()
+    except Exception as e:
+        st.error(f"Error al cargar lista de maestros: {e}")
+        maestros_options = {}
+    finally:
+        db.close()
+
+    if not maestros_options:
+        st.error("⚠️ **No hay maestros autorizados registrados**")
+        st.markdown("""
+        **Para poder usar este formulario:**
+        
+        1. Un administrador debe agregar maestros autorizados al sistema
+        2. Contacte al administrador para que agregue su nombre y correo
+        3. Una vez agregado, podrá seleccionar su nombre de la lista
+        
+        **Administradores:** Vayan a la página "Maestros Autorizados" en el dashboard para agregar maestros.
+        """)
+        st.stop()
+
     col1, col2 = st.columns(2)
 
     with col1:
         # Usar datos de corrección si están disponibles
         default_nombre = st.session_state.get('nombre_completo_correction', '')
-        nombre_completo = st.text_input(
-            "Nombre Completo *",
-            value=default_nombre,
-            placeholder="Ej: Dr. Juan Carlos Pérez García",
-            help="Ingrese su nombre completo como aparece en documentos oficiales"
+        
+        # Encontrar el índice del maestro por defecto
+        maestros_list = list(maestros_options.keys())
+        default_index = 0
+        if default_nombre and default_nombre in maestros_list:
+            default_index = maestros_list.index(default_nombre)
+        
+        selected_maestro = st.selectbox(
+            "Seleccione su nombre *",
+            options=maestros_list,
+            index=default_index,
+            help="Seleccione su nombre de la lista de maestros autorizados",
+            key="maestro_selector"
         )
+        
+        # El nombre completo es el seleccionado
+        nombre_completo = selected_maestro
+        
+        # Actualizar el correo en session_state cuando cambie la selección del maestro
+        if selected_maestro and selected_maestro in maestros_options:
+            # Solo actualizar si no estamos en modo corrección o si el correo actual está vacío
+            if not st.session_state.get('correo_institucional_correction') or not st.session_state.get('correo_input', ''):
+                st.session_state.suggested_email = maestros_options[selected_maestro]
 
     with col2:
+        # El correo se pre-llena automáticamente pero es editable
         default_correo = st.session_state.get('correo_institucional_correction', '')
+        
+        # Si no hay correo de corrección, usar el sugerido o el del maestro seleccionado
+        if not default_correo:
+            default_correo = st.session_state.get('suggested_email', '')
+            if not default_correo and selected_maestro and selected_maestro in maestros_options:
+                default_correo = maestros_options[selected_maestro]
+        
         correo_institucional = st.text_input(
             "Correo Institucional *",
             value=default_correo,
             placeholder="Ej: juan.perez@universidad.edu.mx",
-            help="Use su correo electrónico institucional oficial"
+            help="Correo pre-llenado según el maestro seleccionado, pero puede editarlo si es necesario",
+            key="correo_input"
         )
+        
+        # Mostrar sugerencia si el correo no coincide con el del maestro seleccionado
+        if selected_maestro and selected_maestro in maestros_options:
+            suggested_email = maestros_options[selected_maestro]
+            if correo_institucional and correo_institucional != suggested_email:
+                st.info(f"💡 Correo sugerido para {selected_maestro}: {suggested_email}")
+                if st.button("📧 Usar correo sugerido", key="use_suggested_email"):
+                    st.session_state.suggested_email = suggested_email
+                    st.rerun()
 
     # Período académico
     st.subheader("📅 Período Académico")
@@ -553,6 +612,19 @@ def validate_form(nombre_completo, correo_institucional, año_academico, trimest
         errors.append(
             "El correo institucional es obligatorio y debe tener un formato válido")
 
+    # Verificar que el maestro esté autorizado
+    db = SessionLocal()
+    try:
+        from app.database.crud import MaestroAutorizadoCRUD
+        maestros_crud = MaestroAutorizadoCRUD(db)
+        if not maestros_crud.is_maestro_autorizado(correo_institucional):
+            errors.append(
+                "Este correo no está autorizado para enviar formularios. Contacte al administrador.")
+    except Exception as e:
+        errors.append(f"Error verificando autorización: {e}")
+    finally:
+        db.close()
+
     if not año_academico:
         errors.append("El año académico es obligatorio")
 
@@ -600,9 +672,9 @@ def submit_form(nombre_completo, correo_institucional, año_academico, trimestre
             
             # Verificar si es una corrección
             if st.session_state.get('is_correction', False) and st.session_state.get('original_form_id'):
-                # Actualizar el formulario existente en lugar de crear uno nuevo
-                formulario_id = crud.update_formulario_completo(
-                    formulario_id=st.session_state.original_form_id,
+                # Crear nueva versión
+                formulario = crud.create_formulario_version(
+                    original_id=st.session_state.original_form_id,
                     form_data=form_data
                 )
                 
@@ -611,13 +683,11 @@ def submit_form(nombre_completo, correo_institucional, año_academico, trimestre
                     token_manager = CorrectionTokenManager()
                     token_manager.invalidate_token(st.session_state.correction_token)
                 
-                print(f"Formulario actualizado por {nombre_completo} ({correo_institucional})")
-                return formulario_id
+                print(f"Nueva versión creada por {nombre_completo} ({correo_institucional})")
             else:
                 # Crear formulario normal
                 formulario = crud.create_formulario(form_data)
                 print(f"Formulario enviado por {nombre_completo} ({correo_institucional})")
-                return formulario.id if formulario else None
 
             return formulario.id if formulario else None
 
@@ -724,11 +794,11 @@ def main():
         estado_original = st.session_state.get('original_estado', 'DESCONOCIDO')
         
         if estado_original == "APROBADO":
-            st.warning("⚠️ **Modo Corrección:** Su formulario fue aprobado, pero puede actualizarlo. Requerirá aprobación nuevamente.")
+            st.warning("⚠️ **Modo Corrección - Formulario Aprobado:** Su formulario anterior fue aprobado, pero puede hacer correcciones. La nueva versión requerirá aprobación nuevamente.")
         elif estado_original == "RECHAZADO":
-            st.info("📝 **Modo Corrección:** Puede corregir los problemas identificados en su formulario.")
+            st.info("📝 **Modo Corrección - Formulario Rechazado:** Puede corregir los problemas identificados y reenviar su formulario.")
         else:
-            st.info("📝 **Modo Corrección:** Está actualizando su formulario. Los campos aparecen pre-llenados con su información anterior.")
+            st.info("📝 **Modo Corrección:** Está editando una versión anterior de su formulario. Los campos aparecen pre-llenados con su información anterior.")
 
     # Info box
     show_info_box()
@@ -772,17 +842,42 @@ def main():
                     if st.session_state.get('is_correction', False):
                         estado_original = st.session_state.get('original_estado', 'DESCONOCIDO')
                         
-                        st.success(f"""
-                        ✅ **¡Formulario Actualizado Exitosamente!**
-                        
-                        **ID del Formulario:** {formulario_id}  
-                        **Estado:** PENDIENTE (En revisión nuevamente)  
-                        **Fecha de Actualización:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-                        **Estado Anterior:** {estado_original}
-                        
-                        Su formulario ha sido actualizado con los nuevos datos. 
-                        El área administrativa revisará los cambios realizados.
-                        """)
+                        if estado_original == "APROBADO":
+                            st.success(f"""
+                            🔄 **¡Corrección de Formulario Aprobado Enviada!**
+                            
+                            **ID de Nueva Versión:** {formulario_id}  
+                            **Estado:** PENDIENTE (Requiere nueva aprobación)  
+                            **Fecha de Corrección:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+                            **Versión Anterior:** {st.session_state.get('original_version', 1)} (Estaba APROBADA)
+                            
+                            ⚠️ **Importante:** Su formulario anterior estaba aprobado, pero esta nueva versión 
+                            requerirá aprobación nuevamente. El área administrativa revisará los cambios.
+                            """)
+                        elif estado_original == "RECHAZADO":
+                            st.success(f"""
+                            🔄 **¡Corrección Enviada Exitosamente!**
+                            
+                            **ID de Nueva Versión:** {formulario_id}  
+                            **Estado:** PENDIENTE (En revisión)  
+                            **Fecha de Corrección:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+                            **Versión Anterior:** {st.session_state.get('original_version', 1)} (Estaba RECHAZADA)
+                            
+                            ✅ Su corrección ha sido recibida. El área administrativa revisará 
+                            que se hayan corregido los problemas identificados anteriormente.
+                            """)
+                        else:
+                            st.success(f"""
+                            🔄 **¡Corrección Enviada Exitosamente!**
+                            
+                            **ID de Nueva Versión:** {formulario_id}  
+                            **Estado:** PENDIENTE (En revisión)  
+                            **Fecha de Corrección:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+                            **Versión Anterior:** {st.session_state.get('original_version', 1)}
+                            
+                            Su corrección ha sido recibida y será revisada por el área administrativa. 
+                            Esta nueva versión reemplazará a la anterior una vez aprobada.
+                            """)
                     else:
                         st.success(f"""
                         🎉 **¡Formulario Enviado Exitosamente!**

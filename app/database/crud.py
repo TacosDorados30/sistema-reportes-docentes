@@ -5,7 +5,7 @@ from datetime import datetime, date
 from app.models.database import (
     FormularioEnvioDB, CursoCapacitacionDB, PublicacionDB, EventoAcademicoDB,
     DisenoCurricularDB, ExperienciaMovilidadDB, ReconocimientoDB, CertificacionDB,
-    AuditLogDB, EstadoFormularioEnum
+    AuditLogDB, EstadoFormularioEnum, MaestroAutorizadoDB
 )
 from app.models.schemas import (
     FormData, FormularioEnvio, EstadoFormulario, MetricasResponse
@@ -15,15 +15,18 @@ class FormularioCRUD:
     def __init__(self, db: Session):
         self.db = db
     
-    def create_formulario(self, form_data: FormData) -> FormularioEnvioDB:
-        """Create a new form submission"""
+    def create_formulario(self, form_data: FormData, original_id: Optional[int] = None, version: int = 1) -> FormularioEnvioDB:
+        """Create a new form submission with version support"""
         # Create main form record
         db_formulario = FormularioEnvioDB(
             nombre_completo=form_data.nombre_completo,
             correo_institucional=form_data.correo_institucional,
             año_academico=form_data.año_academico,
             trimestre=form_data.trimestre,
-            fecha_envio=datetime.utcnow()
+            fecha_envio=datetime.utcnow(),
+            formulario_original_id=original_id,
+            version=version,
+            es_version_activa=True
         )
         
         self.db.add(db_formulario)
@@ -189,9 +192,12 @@ class FormularioCRUD:
         skip: int = 0, 
         limit: int = 100
     ) -> List[FormularioEnvioDB]:
-        """Get forms by status with pagination"""
+        """Get forms by status with pagination - only active versions"""
         return self.db.query(FormularioEnvioDB).filter(
-            FormularioEnvioDB.estado == estado
+            and_(
+                FormularioEnvioDB.estado == estado,
+                FormularioEnvioDB.es_version_activa == True
+            )
         ).offset(skip).limit(limit).all()
     
     def get_all_formularios(
@@ -199,8 +205,10 @@ class FormularioCRUD:
         skip: int = 0, 
         limit: int = 100
     ) -> List[FormularioEnvioDB]:
-        """Get all forms with pagination"""
-        return self.db.query(FormularioEnvioDB).offset(skip).limit(limit).all()
+        """Get all forms with pagination - only active versions"""
+        return self.db.query(FormularioEnvioDB).filter(
+            FormularioEnvioDB.es_version_activa == True
+        ).offset(skip).limit(limit).all()
     
     def aprobar_formulario(self, formulario_id: int, usuario: str = "admin") -> bool:
         """Approve a form submission"""
@@ -233,22 +241,39 @@ class FormularioCRUD:
         return True
     
     def get_metricas_generales(self) -> MetricasResponse:
-        """Get general metrics for dashboard"""
-        # Count forms by status
-        total_formularios = self.db.query(FormularioEnvioDB).count()
-        pendientes = self.db.query(FormularioEnvioDB).filter(
-            FormularioEnvioDB.estado == EstadoFormularioEnum.PENDIENTE
-        ).count()
-        aprobados = self.db.query(FormularioEnvioDB).filter(
-            FormularioEnvioDB.estado == EstadoFormularioEnum.APROBADO
-        ).count()
-        rechazados = self.db.query(FormularioEnvioDB).filter(
-            FormularioEnvioDB.estado == EstadoFormularioEnum.RECHAZADO
+        """Get general metrics for dashboard - only active versions"""
+        # Count forms by status (only active versions)
+        total_formularios = self.db.query(FormularioEnvioDB).filter(
+            FormularioEnvioDB.es_version_activa == True
         ).count()
         
-        # Count approved data only
+        pendientes = self.db.query(FormularioEnvioDB).filter(
+            and_(
+                FormularioEnvioDB.estado == EstadoFormularioEnum.PENDIENTE,
+                FormularioEnvioDB.es_version_activa == True
+            )
+        ).count()
+        
+        aprobados = self.db.query(FormularioEnvioDB).filter(
+            and_(
+                FormularioEnvioDB.estado == EstadoFormularioEnum.APROBADO,
+                FormularioEnvioDB.es_version_activa == True
+            )
+        ).count()
+        
+        rechazados = self.db.query(FormularioEnvioDB).filter(
+            and_(
+                FormularioEnvioDB.estado == EstadoFormularioEnum.RECHAZADO,
+                FormularioEnvioDB.es_version_activa == True
+            )
+        ).count()
+        
+        # Count approved data only (from active versions)
         approved_forms_query = self.db.query(FormularioEnvioDB.id).filter(
-            FormularioEnvioDB.estado == EstadoFormularioEnum.APROBADO
+            and_(
+                FormularioEnvioDB.estado == EstadoFormularioEnum.APROBADO,
+                FormularioEnvioDB.es_version_activa == True
+            )
         )
         
         total_cursos = self.db.query(CursoCapacitacionDB).filter(
@@ -538,3 +563,397 @@ class FormularioCRUD:
             'vigentes': vigentes,
             'nombres': nombres
         }    
+    # Métodos para sistema de versiones
+    
+    def create_formulario_version(self, original_id: int, form_data: FormData) -> Optional[FormularioEnvioDB]:
+        """
+        Crea una nueva versión de un formulario existente
+        
+        Args:
+            original_id: ID del formulario original
+            form_data: Datos del nuevo formulario
+            
+        Returns:
+            Nueva versión del formulario o None si hay error
+        """
+        try:
+            # Obtener el formulario original
+            original_form = self.get_formulario(original_id)
+            if not original_form:
+                return None
+            
+            # Determinar el número de versión
+            # Si el formulario original ya es una versión, usar su original_id
+            base_id = original_form.formulario_original_id or original_id
+            
+            # Contar versiones existentes
+            version_count = self.db.query(FormularioEnvioDB).filter(
+                or_(
+                    FormularioEnvioDB.id == base_id,
+                    FormularioEnvioDB.formulario_original_id == base_id
+                )
+            ).count()
+            
+            new_version = version_count + 1
+            
+            # Marcar versiones anteriores como inactivas
+            self.db.query(FormularioEnvioDB).filter(
+                or_(
+                    FormularioEnvioDB.id == base_id,
+                    FormularioEnvioDB.formulario_original_id == base_id
+                )
+            ).update({"es_version_activa": False})
+            
+            # Crear nueva versión
+            nueva_version = self.create_formulario(
+                form_data=form_data,
+                original_id=base_id,
+                version=new_version
+            )
+            
+            return nueva_version
+            
+        except Exception as e:
+            print(f"Error creando versión de formulario: {e}")
+            self.db.rollback()
+            return None
+    
+    def get_formulario_versions(self, formulario_id: int) -> List[FormularioEnvioDB]:
+        """
+        Obtiene todas las versiones de un formulario
+        
+        Args:
+            formulario_id: ID del formulario (puede ser original o versión)
+            
+        Returns:
+            Lista de todas las versiones ordenadas por versión
+        """
+        try:
+            # Obtener el formulario para determinar el ID base
+            formulario = self.get_formulario(formulario_id)
+            if not formulario:
+                return []
+            
+            base_id = formulario.formulario_original_id or formulario_id
+            
+            # Obtener todas las versiones
+            versions = self.db.query(FormularioEnvioDB).filter(
+                or_(
+                    FormularioEnvioDB.id == base_id,
+                    FormularioEnvioDB.formulario_original_id == base_id
+                )
+            ).order_by(FormularioEnvioDB.version).all()
+            
+            return versions
+            
+        except Exception as e:
+            print(f"Error obteniendo versiones: {e}")
+            return []
+    
+    def get_active_version(self, formulario_id: int) -> Optional[FormularioEnvioDB]:
+        """
+        Obtiene la versión activa de un formulario
+        
+        Args:
+            formulario_id: ID del formulario (puede ser original o versión)
+            
+        Returns:
+            Versión activa del formulario o None
+        """
+        try:
+            # Obtener el formulario para determinar el ID base
+            formulario = self.get_formulario(formulario_id)
+            if not formulario:
+                return None
+            
+            base_id = formulario.formulario_original_id or formulario_id
+            
+            # Obtener la versión activa
+            active_version = self.db.query(FormularioEnvioDB).filter(
+                and_(
+                    or_(
+                        FormularioEnvioDB.id == base_id,
+                        FormularioEnvioDB.formulario_original_id == base_id
+                    ),
+                    FormularioEnvioDB.es_version_activa == True
+                )
+            ).first()
+            
+            return active_version
+            
+        except Exception as e:
+            print(f"Error obteniendo versión activa: {e}")
+            return None
+    
+    def compare_versions(self, version1_id: int, version2_id: int) -> Dict[str, Any]:
+        """
+        Compara dos versiones de un formulario
+        
+        Args:
+            version1_id: ID de la primera versión
+            version2_id: ID de la segunda versión
+            
+        Returns:
+            Diccionario con las diferencias encontradas
+        """
+        try:
+            v1 = self.get_formulario(version1_id)
+            v2 = self.get_formulario(version2_id)
+            
+            if not v1 or not v2:
+                return {}
+            
+            differences = {
+                'datos_personales': {},
+                'actividades': {}
+            }
+            
+            # Comparar datos personales
+            personal_fields = ['nombre_completo', 'correo_institucional', 'año_academico', 'trimestre']
+            for field in personal_fields:
+                val1 = getattr(v1, field, None)
+                val2 = getattr(v2, field, None)
+                if val1 != val2:
+                    differences['datos_personales'][field] = {
+                        'version_1': val1,
+                        'version_2': val2
+                    }
+            
+            # Comparar actividades (simplificado - solo contar)
+            activity_fields = [
+                'cursos_capacitacion', 'publicaciones', 'eventos_academicos',
+                'diseno_curricular', 'experiencias_movilidad', 'reconocimientos', 'certificaciones'
+            ]
+            
+            for field in activity_fields:
+                list1 = getattr(v1, field, []) or []
+                list2 = getattr(v2, field, []) or []
+                if len(list1) != len(list2):
+                    differences['actividades'][field] = {
+                        'version_1_count': len(list1),
+                        'version_2_count': len(list2)
+                    }
+            
+            return differences
+            
+        except Exception as e:
+            print(f"Error comparando versiones: {e}")
+            return {} 
+   
+    def update_formulario_completo(self, formulario_id: int, form_data: FormData) -> Optional[int]:
+        """
+        Actualiza un formulario existente con nuevos datos
+        
+        Args:
+            formulario_id: ID del formulario a actualizar
+            form_data: Nuevos datos del formulario
+            
+        Returns:
+            ID del formulario actualizado o None si hay error
+        """
+        try:
+            # Obtener el formulario existente
+            formulario = self.get_formulario(formulario_id)
+            if not formulario:
+                return None
+            
+            # Actualizar datos básicos
+            formulario.nombre_completo = form_data.nombre_completo
+            formulario.correo_institucional = form_data.correo_institucional
+            formulario.año_academico = form_data.año_academico
+            formulario.trimestre = form_data.trimestre
+            
+            # Resetear estado a PENDIENTE para nueva revisión
+            formulario.estado = EstadoFormularioEnum.PENDIENTE
+            formulario.fecha_revision = None
+            formulario.revisado_por = None
+            
+            # Eliminar todas las actividades existentes
+            self.db.query(CursoCapacitacionDB).filter(CursoCapacitacionDB.formulario_id == formulario_id).delete()
+            self.db.query(PublicacionDB).filter(PublicacionDB.formulario_id == formulario_id).delete()
+            self.db.query(EventoAcademicoDB).filter(EventoAcademicoDB.formulario_id == formulario_id).delete()
+            self.db.query(DisenoCurricularDB).filter(DisenoCurricularDB.formulario_id == formulario_id).delete()
+            self.db.query(ExperienciaMovilidadDB).filter(ExperienciaMovilidadDB.formulario_id == formulario_id).delete()
+            self.db.query(ReconocimientoDB).filter(ReconocimientoDB.formulario_id == formulario_id).delete()
+            self.db.query(CertificacionDB).filter(CertificacionDB.formulario_id == formulario_id).delete()
+            
+            # Agregar las nuevas actividades
+            self._add_cursos_capacitacion(formulario_id, form_data.cursos_capacitacion)
+            self._add_publicaciones(formulario_id, form_data.publicaciones)
+            self._add_eventos_academicos(formulario_id, form_data.eventos_academicos)
+            self._add_diseno_curricular(formulario_id, form_data.diseno_curricular)
+            self._add_movilidad(formulario_id, form_data.movilidad)
+            self._add_reconocimientos(formulario_id, form_data.reconocimientos)
+            self._add_certificaciones(formulario_id, form_data.certificaciones)
+            
+            # Agregar log de auditoría
+            self._add_audit_log(formulario_id, "ACTUALIZADO", None, "Formulario actualizado por corrección")
+            
+            self.db.commit()
+            
+            return formulario_id
+            
+        except Exception as e:
+            print(f"Error actualizando formulario: {e}")
+            self.db.rollback()
+            return None    
+def update_formulario_completo(self, formulario_id: int, form_data: FormData) -> Optional[int]:
+        """
+        Actualiza un formulario existente con nuevos datos (para correcciones)
+        
+        Args:
+            formulario_id: ID del formulario a actualizar
+            form_data: Nuevos datos del formulario
+            
+        Returns:
+            ID del formulario actualizado o None si hay error
+        """
+        try:
+            # Obtener el formulario existente
+            formulario = self.get_formulario(formulario_id)
+            if not formulario:
+                return None
+            
+            # Actualizar datos básicos
+            formulario.nombre_completo = form_data.nombre_completo
+            formulario.correo_institucional = form_data.correo_institucional
+            formulario.año_academico = form_data.año_academico
+            formulario.trimestre = form_data.trimestre
+            formulario.fecha_envio = datetime.utcnow()  # Actualizar fecha de envío
+            formulario.estado = EstadoFormularioEnum.PENDIENTE  # Volver a pendiente
+            formulario.fecha_revision = None  # Limpiar fecha de revisión
+            formulario.revisado_por = None  # Limpiar revisor
+            
+            # Eliminar todas las actividades existentes
+            self.db.query(CursoCapacitacionDB).filter(CursoCapacitacionDB.formulario_id == formulario_id).delete()
+            self.db.query(PublicacionDB).filter(PublicacionDB.formulario_id == formulario_id).delete()
+            self.db.query(EventoAcademicoDB).filter(EventoAcademicoDB.formulario_id == formulario_id).delete()
+            self.db.query(DisenoCurricularDB).filter(DisenoCurricularDB.formulario_id == formulario_id).delete()
+            self.db.query(ExperienciaMovilidadDB).filter(ExperienciaMovilidadDB.formulario_id == formulario_id).delete()
+            self.db.query(ReconocimientoDB).filter(ReconocimientoDB.formulario_id == formulario_id).delete()
+            self.db.query(CertificacionDB).filter(CertificacionDB.formulario_id == formulario_id).delete()
+            
+            # Agregar las nuevas actividades
+            self._add_cursos_capacitacion(formulario_id, form_data.cursos_capacitacion)
+            self._add_publicaciones(formulario_id, form_data.publicaciones)
+            self._add_eventos_academicos(formulario_id, form_data.eventos_academicos)
+            self._add_diseno_curricular(formulario_id, form_data.diseno_curricular)
+            self._add_movilidad(formulario_id, form_data.movilidad)
+            self._add_reconocimientos(formulario_id, form_data.reconocimientos)
+            self._add_certificaciones(formulario_id, form_data.certificaciones)
+            
+            # Agregar log de auditoría
+            self._add_audit_log(formulario_id, "ACTUALIZADO", None, "Formulario actualizado por corrección")
+            
+            self.db.commit()
+            
+            return formulario_id
+            
+        except Exception as e:
+            print(f"Error actualizando formulario: {e}")
+            self.db.rollback()
+            return None
+
+
+class MaestroAutorizadoCRUD:
+    def __init__(self, db: Session):
+        self.db = db
+    
+    def get_all_maestros(self) -> List[MaestroAutorizadoDB]:
+        """Obtiene todos los maestros autorizados activos"""
+        return self.db.query(MaestroAutorizadoDB).filter(
+            MaestroAutorizadoDB.activo == True
+        ).order_by(MaestroAutorizadoDB.nombre_completo).all()
+    
+    def get_maestro_by_email(self, email: str) -> Optional[MaestroAutorizadoDB]:
+        """Obtiene un maestro por su email"""
+        return self.db.query(MaestroAutorizadoDB).filter(
+            and_(
+                MaestroAutorizadoDB.correo_institucional == email,
+                MaestroAutorizadoDB.activo == True
+            )
+        ).first()
+    
+    def get_maestro_by_id(self, maestro_id: int) -> Optional[MaestroAutorizadoDB]:
+        """Obtiene un maestro por su ID"""
+        return self.db.query(MaestroAutorizadoDB).filter(
+            MaestroAutorizadoDB.id == maestro_id
+        ).first()
+    
+    def create_maestro(self, nombre_completo: str, correo_institucional: str) -> Optional[MaestroAutorizadoDB]:
+        """Crea un nuevo maestro autorizado"""
+        try:
+            # Verificar si ya existe
+            existing = self.get_maestro_by_email(correo_institucional)
+            if existing:
+                return None  # Ya existe
+            
+            maestro = MaestroAutorizadoDB(
+                nombre_completo=nombre_completo,
+                correo_institucional=correo_institucional,
+                activo=True
+            )
+            
+            self.db.add(maestro)
+            self.db.commit()
+            self.db.refresh(maestro)
+            
+            return maestro
+            
+        except Exception as e:
+            print(f"Error creando maestro: {e}")
+            self.db.rollback()
+            return None
+    
+    def update_maestro(self, maestro_id: int, nombre_completo: str, correo_institucional: str) -> bool:
+        """Actualiza un maestro existente"""
+        try:
+            maestro = self.get_maestro_by_id(maestro_id)
+            if not maestro:
+                return False
+            
+            # Verificar si el nuevo email ya existe en otro maestro
+            if maestro.correo_institucional != correo_institucional:
+                existing = self.get_maestro_by_email(correo_institucional)
+                if existing and existing.id != maestro_id:
+                    return False  # Email ya existe en otro maestro
+            
+            maestro.nombre_completo = nombre_completo
+            maestro.correo_institucional = correo_institucional
+            maestro.fecha_actualizacion = datetime.utcnow()
+            
+            self.db.commit()
+            return True
+            
+        except Exception as e:
+            print(f"Error actualizando maestro: {e}")
+            self.db.rollback()
+            return False
+    
+    def delete_maestro(self, maestro_id: int) -> bool:
+        """Desactiva un maestro (soft delete)"""
+        try:
+            maestro = self.get_maestro_by_id(maestro_id)
+            if not maestro:
+                return False
+            
+            maestro.activo = False
+            maestro.fecha_actualizacion = datetime.utcnow()
+            
+            self.db.commit()
+            return True
+            
+        except Exception as e:
+            print(f"Error desactivando maestro: {e}")
+            self.db.rollback()
+            return False
+    
+    def is_maestro_autorizado(self, email: str) -> bool:
+        """Verifica si un email está autorizado"""
+        maestro = self.get_maestro_by_email(email)
+        return maestro is not None
+    
+    def get_maestros_options(self) -> Dict[str, str]:
+        """Obtiene opciones para selectbox (nombre -> email)"""
+        maestros = self.get_all_maestros()
+        return {maestro.nombre_completo: maestro.correo_institucional for maestro in maestros}

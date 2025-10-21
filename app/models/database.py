@@ -46,6 +46,12 @@ class FormularioEnvioDB(Base):
     fecha_revision = Column(DateTime, nullable=True)
     revisado_por = Column(String(255), nullable=True)
     
+    # Campos para sistema de versiones
+    formulario_original_id = Column(Integer, ForeignKey("formularios_envio.id"), nullable=True)
+    version = Column(Integer, default=1)
+    token_correccion = Column(String(255), nullable=True, unique=True)
+    es_version_activa = Column(Boolean, default=True)
+    
     # Relationships
     cursos_capacitacion = relationship("CursoCapacitacionDB", back_populates="formulario", cascade="all, delete-orphan")
     publicaciones = relationship("PublicacionDB", back_populates="formulario", cascade="all, delete-orphan")
@@ -132,6 +138,17 @@ class CertificacionDB(Base):
     vigente = Column(Boolean, default=True)
     
     formulario = relationship("FormularioEnvioDB", back_populates="certificaciones")
+
+# Authorized teachers table
+class MaestroAutorizadoDB(Base):
+    __tablename__ = "maestros_autorizados"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    nombre_completo = Column(String(255), nullable=False)
+    correo_institucional = Column(String(255), nullable=False, unique=True)
+    activo = Column(Boolean, default=True)
+    fecha_creacion = Column(DateTime, default=datetime.utcnow)
+    fecha_actualizacion = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 # Audit log table
 class AuditLogDB(Base):

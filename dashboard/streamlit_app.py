@@ -1,4 +1,4 @@
-from app.core.audit_logger import audit_logger
+
 from app.auth.streamlit_auth import auth
 from app.models.database import EstadoFormularioEnum
 from app.core.metrics_calculator import MetricsCalculator
@@ -428,8 +428,8 @@ def show_authenticated_dashboard():
     st.sidebar.title("Navegación")
     page = st.sidebar.selectbox(
         "Seleccionar página",
-        ["Dashboard Principal", "Revisión de Formularios", "Métricas Detalladas", "Análisis de Datos", "Análisis Avanzado",
-            "Exportar Datos", "Generación de Reportes", "Gestión de Backups", "Monitoreo de Rendimiento"]
+        ["Dashboard Principal", "Revisión de Formularios", "Maestros Autorizados", "Métricas Detalladas", "Análisis de Datos", "Análisis Avanzado",
+            "Generación de Reportes", "Gestión de Backups"]
     )
 
     # Load data with optimized caching
@@ -450,6 +450,9 @@ def show_authenticated_dashboard():
         show_main_dashboard(all_forms, metrics)
     elif page == "Revisión de Formularios":
         show_form_review()
+    elif page == "Maestros Autorizados":
+        from dashboard.pages.maestros_autorizados import show_maestros_autorizados_page
+        show_maestros_autorizados_page()
     elif page == "Métricas Detalladas":
         show_detailed_metrics(all_forms, metrics)
     elif page == "Análisis de Datos":
@@ -457,9 +460,6 @@ def show_authenticated_dashboard():
     elif page == "Análisis Avanzado":
         from dashboard.pages.advanced_analytics import show_advanced_analytics
         show_advanced_analytics()
-    elif page == "Exportar Datos":
-        from dashboard.pages.data_export import show_data_export_page
-        show_data_export_page()
     elif page == "Generación de Reportes":
         from dashboard.pages.report_generation import show_report_generation_page
         show_report_generation_page()
@@ -467,9 +467,7 @@ def show_authenticated_dashboard():
     elif page == "Gestión de Backups":
         from dashboard.pages.backup_management import show_backup_management
         show_backup_management()
-    elif page == "Monitoreo de Rendimiento":
-        from dashboard.pages.performance_dashboard import show_performance_dashboard
-        show_performance_dashboard()
+
 
 
 def show_main_dashboard(all_forms, metrics):
