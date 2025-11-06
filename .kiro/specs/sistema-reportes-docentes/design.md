@@ -2,7 +2,7 @@
 
 ## Overview
 
-El Sistema de Reportes Docentes es una aplicación web full-stack de Data Science construida con Python que integra recolección de datos, procesamiento analítico, visualización interactiva y generación automática de reportes. La arquitectura está diseñada para ser desplegada en plataformas cloud gratuitas como Streamlit Cloud o Heroku, utilizando una base de datos SQLite para simplicidad y portabilidad.
+El Sistema de Reportes Docentes es una aplicación web completa construida con Streamlit que integra formulario público, dashboard administrativo multi-página, procesamiento de datos, visualizaciones interactivas y generación automática de reportes en múltiples formatos. La arquitectura utiliza Streamlit como framework principal, SQLite con SQLAlchemy como ORM, y está optimizada para despliegue en GitHub con respaldo automático.
 
 ## Architecture
 
@@ -10,118 +10,172 @@ El Sistema de Reportes Docentes es una aplicación web full-stack de Data Scienc
 
 ```mermaid
 graph TB
-    A[Formulario Web Público] --> B[API Backend Flask/FastAPI]
-    B --> C[Base de Datos SQLite]
-    B --> D[Motor de Procesamiento]
-    D --> E[Dashboard Streamlit]
-    D --> F[Generador de Reportes]
-    F --> G[Motor NLG]
-    E --> H[Visualizaciones Plotly]
+    A[Streamlit App Principal] --> B[Formulario Público Integrado]
+    A --> C[Dashboard Multi-Página]
+    C --> D[Revision Formularios]
+    C --> E[Generacion Reportes]
+    C --> F[Maestros Autorizados]
+    C --> G[Seguimiento Maestros]
     
-    subgraph "Cloud Deployment"
-        I[Streamlit Cloud / Heroku]
-        J[File Storage]
+    A --> H[Base de Datos SQLite]
+    A --> I[Sistema de Autenticación]
+    A --> J[Motor de Procesamiento]
+    J --> K[Generador de Reportes]
+    K --> L[Exportador Multi-Formato]
+    L --> M[PDF/Excel/PowerPoint]
+    
+    A --> N[Sistema de Notificaciones]
+    N --> O[SMTP Email Service]
+    
+    subgraph "GitHub Deployment"
+        P[GitHub Repository]
+        Q[Automated Backup]
     end
     
-    B --> I
-    C --> J
+    A --> P
+    H --> Q
 ```
 
 ### Technology Stack
 
-**Frontend:**
-- Streamlit para el dashboard administrativo y visualizaciones
-- HTML/CSS/JavaScript vanilla para el formulario público
-- Plotly para gráficas interactivas
+**Frontend & Backend Unificado:**
+- Streamlit 1.28+ como framework principal para UI y lógica de negocio
+- Streamlit Pages para navegación multi-página
+- Plotly para visualizaciones interactivas
+- Streamlit Components para funcionalidades avanzadas
 
-**Backend:**
-- Python 3.9+
-- FastAPI para la API REST
-- SQLAlchemy para ORM
-- Pandas para procesamiento de datos
-- Pydantic para validación de datos
+**Base de Datos y ORM:**
+- SQLite como base de datos principal
+- SQLAlchemy 2.0+ para ORM y gestión de modelos
+- Alembic para migraciones de base de datos
+- Pydantic para validación de datos y schemas
 
-**Data Processing:**
-- Pandas para limpieza y transformación
+**Procesamiento de Datos:**
+- Pandas para manipulación y análisis de datos
 - NumPy para cálculos estadísticos
-- Scikit-learn para detección de duplicados
-- NLTK/spaCy para procesamiento de texto
+- Python datetime para manejo de fechas y períodos
+- Custom metrics calculator para estadísticas específicas
 
-**Report Generation:**
-- Jinja2 para templates de reportes
-- ReportLab para generación de PDFs
-- OpenPyXL para archivos Excel
-- python-pptx para PowerPoint
+**Generación de Reportes:**
+- ReportLab para generación de PDFs con gráficos
+- OpenPyXL para archivos Excel con formato
+- python-pptx para presentaciones PowerPoint
+- Markdown nativo para reportes de texto
 
-**Deployment:**
-- Streamlit Cloud (opción principal)
-- Heroku (alternativa)
-- SQLite como base de datos
-- Git para versionado
+**Notificaciones y Comunicación:**
+- smtplib para envío de emails
+- email.mime para construcción de mensajes
+- Custom notification system para recordatorios
+
+**Despliegue y Versionado:**
+- GitHub para repositorio y respaldo automático
+- run_unified.py como punto de entrada único
+- Configuración de entorno con archivos .env
+- Logging integrado para auditoría y debugging
 
 ## Components and Interfaces
 
-### 1. Formulario Web Público (Public Form Component)
+### 1. Aplicación Principal Streamlit (Main Streamlit App)
 
 **Responsabilidades:**
-- Renderizar formulario HTML dinámico
-- Validación client-side básica
-- Envío de datos via AJAX
-- Manejo de campos múltiples dinámicos
+- Gestionar navegación entre formulario público y dashboard admin
+- Manejar autenticación y sesiones de usuario
+- Coordinar acceso a base de datos y procesamiento
+- Proporcionar punto de entrada unificado
 
-**Interfaces:**
+**Archivo Principal:**
 ```python
-class FormData(BaseModel):
+# dashboard/streamlit_app.py
+def main():
+    # Detectar modo (público vs admin) basado en query params
+    # Mostrar formulario público o dashboard según contexto
+    # Manejar autenticación para funciones administrativas
+
+def show_public_form():
+    # Formulario integrado en Streamlit con pestañas
+    
+def show_admin_dashboard():
+    # Dashboard multi-página con navegación automática
+```
+
+### 2. Formulario Público Integrado (Integrated Public Form)
+
+**Responsabilidades:**
+- Renderizar formulario Streamlit con pestañas por categoría
+- Validación en tiempo real con feedback inmediato
+- Manejo de campos múltiples con botones dinámicos
+- Versionado automático de envíos
+
+**Estructura de Datos:**
+```python
+class FormularioEnvioDB(Base):
+    id: int
     nombre_completo: str
-    correo_institucional: EmailStr
-    cursos_capacitacion: List[CursoCapacitacion]
-    publicaciones: List[Publicacion]
-    eventos_academicos: List[EventoAcademico]
-    diseno_curricular: List[DisenoCurricular]
-    movilidad: List[ExperienciaMovilidad]
-    reconocimientos: List[Reconocimiento]
-    certificaciones: List[Certificacion]
+    correo_institucional: str
+    año_academico: int
+    trimestre: str
+    estado: EstadoFormularioEnum
+    version: int
+    es_version_activa: bool
     fecha_envio: datetime
+    # Relaciones con todas las categorías de actividades
 ```
 
-### 2. API Backend (Backend API Component)
+### 3. Página de Revisión de Formularios (Form Review Page)
 
 **Responsabilidades:**
-- Recibir y validar datos del formulario
-- Gestionar estados de formularios (pendiente/aprobado/rechazado)
-- Proporcionar endpoints para el dashboard
-- Autenticación básica para administradora
+- Mostrar lista de formularios pendientes con filtros
+- Proporcionar vista detallada por pestañas de actividades
+- Gestionar aprobación/rechazo con confirmación
+- Mantener auditoría de decisiones administrativas
 
-**Endpoints principales:**
+**Archivo:** `dashboard/pages/revision_formularios.py`
 ```python
-POST /api/formulario/enviar
-GET /api/admin/formularios/pendientes
-PUT /api/admin/formulario/{id}/aprobar
-PUT /api/admin/formulario/{id}/rechazar
-GET /api/admin/metricas
-GET /api/admin/datos/exportar
+def show_form_review():
+    # Lista de formularios pendientes con filtros
+    # Vista detallada con pestañas por categoría
+    # Botones de aprobar/rechazar con confirmación
+    # Estadísticas de revisión y progreso
 ```
 
-### 3. Motor de Procesamiento (Data Processing Engine)
+### 4. Página de Generación de Reportes (Report Generation Page)
 
 **Responsabilidades:**
-- Limpieza y normalización de datos
-- Detección de duplicados
-- Cálculo de métricas por período
-- Agregación de estadísticas
+- Generar reportes anuales narrativos y trimestrales resumidos
+- Exportar en múltiples formatos (PDF, Excel, PowerPoint, Markdown)
+- Crear títulos dinámicos según tipo de reporte seleccionado
+- Mantener historial de reportes generados con metadatos
 
-**Clases principales:**
+**Archivo:** `dashboard/pages/generacion_reportes.py`
 ```python
-class DataProcessor:
-    def clean_data(self, raw_data: List[FormData]) -> pd.DataFrame
-    def detect_duplicates(self, df: pd.DataFrame) -> pd.DataFrame
-    def calculate_metrics(self, df: pd.DataFrame, period: str) -> Dict
-    def generate_statistics(self, df: pd.DataFrame) -> Dict
+def generate_annual_narrative_report():
+    # Reporte anual detallado con ejemplos específicos
+    
+def generate_quarterly_narrative_report():
+    # Resumen trimestral con todas las actividades sin "ejemplo:"
+    
+def generate_powerpoint_content():
+    # PowerPoint desde cero con títulos dinámicos
+    # Formato: "Informe de Actividades 2025" o "Informe de Actividades Trimestral Q4 2025"
+```
 
-class MetricsCalculator:
-    def calculate_quarterly_metrics(self, df: pd.DataFrame, quarter: int, year: int)
-    def calculate_annual_metrics(self, df: pd.DataFrame, year: int)
-    def compare_periods(self, current: Dict, previous: Dict)
+### 5. Sistema de Gestión de Maestros (Teacher Management System)
+
+**Responsabilidades:**
+- Gestionar lista de maestros autorizados
+- Rastrear estado de envío de formularios por docente
+- Enviar notificaciones y recordatorios por email
+- Mantener historial de comunicaciones
+
+**Archivos:**
+- `dashboard/pages/maestros_autorizados.py` - Gestión de maestros
+- `dashboard/pages/seguimiento_maestros.py` - Seguimiento y notificaciones
+```python
+class MaestroAutorizado:
+    # Gestión completa de maestros con validación de emails
+    
+class NotificationSystem:
+    # Sistema SMTP para envío de recordatorios automáticos
 ```
 
 ### 4. Dashboard Administrativo (Admin Dashboard Component)

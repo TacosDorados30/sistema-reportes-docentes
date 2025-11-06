@@ -1,37 +1,29 @@
 # Implementation Plan
 
-- [x] 1. Set up project structure and core configuration
+- [x] 1. Set up unified project structure and configuration
+  - Create directory structure (app/, dashboard/, dashboard/pages/, assets/, scripts/)
+  - Set up requirements.txt with Streamlit, SQLAlchemy, Plotly, ReportLab, python-pptx
+  - Create run_unified.py as single entry point for the application
+  - Initialize Git repository with comprehensive .gitignore for sensitive data
+  - Configure GitHub repository for backup and version control
+  - _Requirements: 6.1, 6.4, 6.7_
 
+- [x] 2. Implement comprehensive data models with versioning
+  - Create SQLAlchemy models for all 9 activity categories (cursos, publicaciones, eventos, diseño, movilidad, reconocimientos, certificaciones, otras actividades)
+  - Implement automatic versioning system for form submissions
+  - Set up database relationships with proper foreign keys
+  - Create CRUD operations with session management
+  - Add database initialization and sample data scripts
+  - Implement maestros autorizados table with email validation
+  - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9, 7.10_
 
-
-  - Create directory structure for the application (app/, dashboard/, static/, templates/, tests/)
-  - Set up requirements.txt with all necessary Python dependencies
-  - Create configuration files (config.py, .env template, streamlit config)
-  - Initialize Git repository with appropriate .gitignore
-  - _Requirements: 6.1, 6.4_
-
-- [x] 2. Implement data models and database setup
-
-
-
-
-  - Create Pydantic models for all form data structures (FormData, CursoCapacitacion, Publicacion, etc.)
-  - Implement SQLAlchemy models matching the database schema
-  - Create database initialization and migration scripts
-  - Set up SQLite database connection and session management
-
-
-
-  - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7_
-
-- [x] 3. Build the public form interface
-
-
-  - Create HTML form with all required fields and dynamic sections
-  - Implement JavaScript for adding multiple entries ("+ agregar otro" functionality)
-  - Add client-side validation for required fields and email format
-  - Style the form with responsive CSS for mobile and desktop
-  - _Requirements: 1.1, 1.2, 1.3_
+- [x] 3. Build integrated Streamlit public form
+  - Create Streamlit form with tabbed interface for all 9 activity categories
+  - Implement dynamic field addition with Streamlit session state
+  - Add real-time validation with immediate feedback
+  - Integrate form directly into main Streamlit app with URL routing
+  - Implement automatic versioning for form resubmissions
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
 - [x] 4. Develop FastAPI backend endpoints
 
