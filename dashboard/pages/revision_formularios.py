@@ -44,7 +44,8 @@ def get_complete_form_data(form_id: int):
             'diseno_curricular': [],
             'experiencias_movilidad': [],
             'reconocimientos': [],
-            'certificaciones': []
+            'certificaciones': [],
+            'otras_actividades': []
         }
 
         # Load relationships safely
@@ -112,10 +113,21 @@ def get_complete_form_data(form_id: int):
             if form.certificaciones:
                 form_data['certificaciones'] = [{
                     'nombre': c.nombre,
-                    'fecha_obtencion': c.fecha_obtencion,
-                    'fecha_vencimiento': getattr(c, 'fecha_vencimiento', None),
-                    'vigente': getattr(c, 'vigente', True)
+                    'fecha_obtencion': c.fecha_obtencion
                 } for c in form.certificaciones]
+        except:
+            pass
+        
+        try:
+            if form.otras_actividades:
+                form_data['otras_actividades'] = [{
+                    'categoria': o.categoria,
+                    'titulo': o.titulo,
+                    'descripcion': getattr(o, 'descripcion', None),
+                    'fecha': getattr(o, 'fecha', None),
+                    'cantidad': getattr(o, 'cantidad', None),
+                    'observaciones': getattr(o, 'observaciones', None)
+                } for o in form.otras_actividades]
         except:
             pass
 
@@ -235,15 +247,14 @@ def show_form_review_page():
                 st.write(
                     f"- **Fecha revisión:** {selected_form['fecha_revision'].strftime('%Y-%m-%d %H:%M')}")
             if selected_form.get('revisado_por'):
-                st.write(
-                    f"- **Revisado por:** {selected_form['revisado_por']}")
+                st.write(f"- **Estado:** Revisado")
 
         # Show related data
         st.subheader("📚 Contenido del Formulario")
 
         # Create tabs for different sections
         tabs = st.tabs(["Cursos", "Publicaciones", "Eventos", "Diseño Curricular",
-                       "Movilidad", "Reconocimientos", "Certificaciones"])
+                       "Movilidad", "Reconocimientos", "Certificaciones", "Otras Actividades"])
 
         with tabs[0]:  # Cursos
             if selected_form['cursos_capacitacion']:
@@ -319,14 +330,28 @@ def show_form_review_page():
                     st.write(f"**Certificación {i}:**")
                     st.write(f"- Nombre: {cert['nombre']}")
                     st.write(f"- Fecha obtención: {cert['fecha_obtencion']}")
-                    if cert.get('fecha_vencimiento'):
-                        st.write(
-                            f"- Fecha vencimiento: {cert['fecha_vencimiento']}")
-                    st.write(
-                        f"- Vigente: {'Sí' if cert.get('vigente', True) else 'No'}")
                     st.write("---")
             else:
                 st.info("No hay certificaciones registradas.")
+
+        with tabs[7]:  # Otras Actividades
+            if selected_form['otras_actividades']:
+                for i, actividad in enumerate(selected_form['otras_actividades'], 1):
+                    st.write(f"**Actividad {i}:**")
+                    st.write(f"- Título: {actividad['titulo']}")
+                    if actividad.get('descripcion'):
+                        st.write(f"- Descripción: {actividad['descripcion']}")
+                    if actividad.get('categoria') and actividad['categoria'] != 'OTRA_ACTIVIDAD':
+                        st.write(f"- Categoría: {actividad['categoria']}")
+                    if actividad.get('fecha'):
+                        st.write(f"- Fecha: {actividad['fecha']}")
+                    if actividad.get('cantidad'):
+                        st.write(f"- Cantidad: {actividad['cantidad']}")
+                    if actividad.get('observaciones'):
+                        st.write(f"- Observaciones: {actividad['observaciones']}")
+                    st.write("---")
+            else:
+                st.info("No hay otras actividades registradas.")
 
         # Mostrar si el formulario ha sido corregido
         if selected_form.get('token_correccion'):
@@ -435,8 +460,8 @@ def show_form_review_page():
                     selected_form['id'])
 
                 if token:
-                    # URL del formulario público en el mismo sistema
-                    correction_url = f"http://192.168.1.15:8502/formulario?token={token}&mode=correction"
+                    # URL del formulario público en el mismo sistema (puerto 8501)
+                    correction_url = f"http://localhost:8501?token={token}&mode=correction"
                 else:
                     correction_url = None
 
@@ -455,12 +480,7 @@ def show_form_review_page():
                         st.info(
                             "📧 Envía este link al docente para que pueda corregir su formulario.")
 
-                    # Botón para copiar al portapapeles (usando JavaScript)
-                    st.markdown(f"""
-                    <button onclick="navigator.clipboard.writeText('{correction_url}')">
-                        📋 Copiar Link
-                    </button>
-                    """, unsafe_allow_html=True)
+
                 else:
                     st.error("❌ Error al generar el link de corrección.")
 
@@ -479,7 +499,7 @@ def show_form_review_page():
                     f"📝 Revisado: {selected_form['fecha_revision'].strftime('%Y-%m-%d')}")
 
             if selected_form.get('revisado_por'):
-                st.write(f"👤 Por: {selected_form['revisado_por']}")
+                st.write("✅ Formulario revisado")
 
 
 def get_pending_forms():

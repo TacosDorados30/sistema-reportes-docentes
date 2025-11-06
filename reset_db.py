@@ -6,7 +6,7 @@ Script simple para borrar todos los formularios del dashboard
 from app.models.database import (
     FormularioEnvioDB, CursoCapacitacionDB, PublicacionDB,
     EventoAcademicoDB, DisenoCurricularDB, ExperienciaMovilidadDB,
-    ReconocimientoDB, CertificacionDB
+    ReconocimientoDB, CertificacionDB, OtraActividadAcademicaDB
 )
 from app.database.connection import SessionLocal
 import os
@@ -31,7 +31,8 @@ def borrar_datos():
             print("✅ Ya está limpio")
             return
 
-        # Borrar todo
+        # Borrar todo (en orden para respetar las foreign keys)
+        db.query(OtraActividadAcademicaDB).delete()
         db.query(CertificacionDB).delete()
         db.query(ReconocimientoDB).delete()
         db.query(ExperienciaMovilidadDB).delete()

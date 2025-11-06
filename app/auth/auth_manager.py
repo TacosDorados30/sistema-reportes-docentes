@@ -292,6 +292,23 @@ class AuthManager:
         
         return True
     
+    def update_user_info(self, username: str, name: str, email: str) -> bool:
+        """Update user name and email"""
+        
+        users = self.config.get("admin_users", {})
+        
+        if username not in users:
+            return False
+        
+        # Update user information
+        users[username]["name"] = name
+        users[username]["email"] = email
+        users[username]["updated_at"] = datetime.now().isoformat()
+        
+        self._save_config(self.config)
+        
+        return True
+    
     def get_session_info(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Get session information"""
         

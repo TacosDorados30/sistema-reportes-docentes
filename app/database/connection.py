@@ -4,6 +4,13 @@ from sqlalchemy.pool import StaticPool
 from app.config import settings
 from app.models.database import Base
 import os
+import logging
+
+# Silenciar logs de SQLAlchemy para mejor rendimiento
+logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.dialects').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.orm').setLevel(logging.WARNING)
 
 # Import audit models to register them with SQLAlchemy
 from app.models import audit
@@ -11,20 +18,21 @@ from app.models import audit
 # Import database monitoring
 # from app.core.database_monitor import db_monitor  # Removed for optimization
 
-# Create database engine
+# Create database engine (optimized for performance)
 if settings.database_url.startswith("sqlite"):
-    # SQLite specific configuration
+    # SQLite specific configuration - optimized for production
     engine = create_engine(
         settings.database_url,
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
-        echo=settings.environment == "development"
+        echo=False,  # Silenciar logs para mejor rendimiento
+        logging_name="sqlalchemy.engine"
     )
 else:
     # For other databases (PostgreSQL, MySQL, etc.)
     engine = create_engine(
         settings.database_url,
-        echo=settings.environment == "development"
+        echo=False  # Silenciar logs para mejor rendimiento
     )
 
 # Database monitoring removed for optimization
@@ -53,7 +61,7 @@ def init_database():
     os.makedirs(settings.upload_dir, exist_ok=True)
     os.makedirs(settings.reports_dir, exist_ok=True)
     
-    print("Database initialized successfully")
+    # print("Database initialized successfully")  # Silenciado para terminal limpia
 
 if __name__ == "__main__":
     init_database()

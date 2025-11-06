@@ -301,8 +301,41 @@ def reject_form(form_id: int, comment: str = ""):
 
 
 def main():
-    """Main dashboard application"""
+    """Main application - handles both public form and admin dashboard"""
 
+    # Check if we should show the public form or admin dashboard
+    try:
+        # Try new Streamlit syntax
+        query_params = st.query_params
+        show_admin = query_params.get("admin", "false").lower() == "true"
+    except AttributeError:
+        # Use old Streamlit syntax
+        query_params = st.experimental_get_query_params()
+        show_admin = query_params.get("admin", ["false"])[0].lower() == "true"
+
+    # Also check session state for admin mode
+    if 'admin_mode' not in st.session_state:
+        st.session_state.admin_mode = show_admin
+
+    # Allow switching modes
+    if show_admin:
+        st.session_state.admin_mode = True
+
+    if st.session_state.admin_mode:
+        show_admin_dashboard()
+    else:
+        show_public_form()
+
+
+def show_public_form():
+    """Show the public form for teachers"""
+    # Import and show the public form
+    from dashboard.formulario import main as formulario_main
+    formulario_main()
+
+
+def show_admin_dashboard():
+    """Show the admin dashboard"""
     # Initialize session state with persistence support
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
@@ -340,8 +373,9 @@ def main():
         </style>
         """, unsafe_allow_html=True)
 
-        # Show only login form - no other UI elements
+        # Show login form
         auth.show_login_form()
+
         return
 
     # Only show the dashboard UI after successful authentication
@@ -392,8 +426,6 @@ def show_authenticated_dashboard():
     </style>
     """, unsafe_allow_html=True)
 
-
-
     # Header
     st.markdown('<h1 class="main-header">📊 Sistema de Reportes Docentes</h1>',
                 unsafe_allow_html=True)
@@ -403,20 +435,6 @@ def show_authenticated_dashboard():
     auth.show_admin_menu()
 
     # Check for admin page requests
-    if st.session_state.get('show_user_management'):
-        auth.show_user_management()
-        if st.button("← Volver al Dashboard"):
-            st.session_state.show_user_management = False
-            st.rerun()
-        return
-
-    if st.session_state.get('show_session_management'):
-        auth.show_session_management()
-        if st.button("← Volver al Dashboard"):
-            st.session_state.show_session_management = False
-            st.rerun()
-        return
-
     if st.session_state.get('show_password_change'):
         auth.show_password_change()
         if st.button("← Volver al Dashboard"):
@@ -424,50 +442,17 @@ def show_authenticated_dashboard():
             st.rerun()
         return
 
-    # Sidebar navigation - ONLY shown after authentication
-    st.sidebar.title("Navegación")
-    page = st.sidebar.selectbox(
-        "Seleccionar página",
-        ["Dashboard Principal", "Revisión de Formularios", "Maestros Autorizados", "Métricas Detalladas", "Análisis de Datos", "Análisis Avanzado",
-            "Generación de Reportes", "Gestión de Backups"]
-    )
-
-    # Load data with optimized caching
+    # Load data with optimized caching - always show main dashboard
     try:
-        if page == "Dashboard Principal":
-            # For main dashboard, use cached metrics only for better performance
-            metrics = load_metrics_only()
-            all_forms = []  # Load forms only when needed
-        else:
-            # For other pages, load full data
-            all_forms, metrics = load_data()
+        # For main dashboard, use cached metrics only for better performance
+        metrics = load_metrics_only()
+        all_forms = []  # Load forms only when needed
     except Exception as e:
         st.error(f"Error al cargar datos: {e}")
         return
 
-    # Route to selected page
-    if page == "Dashboard Principal":
-        show_main_dashboard(all_forms, metrics)
-    elif page == "Revisión de Formularios":
-        show_form_review()
-    elif page == "Maestros Autorizados":
-        from dashboard.pages.maestros_autorizados import show_maestros_autorizados_page
-        show_maestros_autorizados_page()
-    elif page == "Métricas Detalladas":
-        show_detailed_metrics(all_forms, metrics)
-    elif page == "Análisis de Datos":
-        show_data_analysis(all_forms)
-    elif page == "Análisis Avanzado":
-        from dashboard.pages.advanced_analytics import show_advanced_analytics
-        show_advanced_analytics()
-    elif page == "Generación de Reportes":
-        from dashboard.pages.report_generation import show_report_generation_page
-        show_report_generation_page()
-
-    elif page == "Gestión de Backups":
-        from dashboard.pages.backup_management import show_backup_management
-        show_backup_management()
-
+    # Always show main dashboard
+    show_main_dashboard(all_forms, metrics)
 
 
 def show_main_dashboard(all_forms, metrics):
@@ -539,14 +524,16 @@ def show_main_dashboard(all_forms, metrics):
     with col2:
         # Academic activities bar chart
         activities_data = {
-            'Actividad': ['Cursos', 'Publicaciones', 'Eventos', 'Diseños', 'Movilidades', 'Reconocimientos'],
+            'Actividad': ['Cursos', 'Publicaciones', 'Eventos', 'Diseños', 'Movilidades', 'Reconocimientos', 'Certificaciones', 'Otras'],
             'Cantidad': [
                 metrics.total_cursos,
                 metrics.total_publicaciones,
                 metrics.total_eventos,
                 metrics.total_disenos_curriculares,
                 metrics.total_movilidades,
-                metrics.total_reconocimientos
+                metrics.total_reconocimientos,
+                metrics.total_certificaciones,
+                metrics.total_otras_actividades
             ]
         }
 
@@ -559,41 +546,6 @@ def show_main_dashboard(all_forms, metrics):
         )
         fig_bar.update_layout(showlegend=False)
         st.plotly_chart(fig_bar, use_container_width=True)
-
-    # Recent activity
-    st.header("🕒 Actividad Reciente")
-
-    if all_forms:
-        # Convert to DataFrame for easier handling
-        recent_forms = []
-        for form in all_forms[-10:]:  # Last 10 forms
-            recent_forms.append({
-                'ID': form.id,
-                'Nombre': form.nombre_completo,
-                'Email': form.correo_institucional,
-                'Período': f"{form.año_academico} - {form.trimestre}" if hasattr(form, 'año_academico') and hasattr(form, 'trimestre') else "N/A",
-                'Estado': form.estado.value,
-                'Fecha Envío': form.fecha_envio.strftime("%Y-%m-%d %H:%M") if form.fecha_envio else "N/A",
-                'Revisado por': form.revisado_por or "N/A"
-            })
-
-        pd = get_pandas()
-        df_recent = pd.DataFrame(recent_forms)
-
-        # Style the dataframe
-        def style_status(val):
-            if val == 'PENDIENTE':
-                return 'color: #ff9800'
-            elif val == 'APROBADO':
-                return 'color: #4caf50'
-            elif val == 'RECHAZADO':
-                return 'color: #f44336'
-            return ''
-
-        styled_df = df_recent.style.map(style_status, subset=['Estado'])
-        st.dataframe(styled_df, use_container_width=True)
-    else:
-        st.info("No hay formularios registrados aún.")
 
 
 def show_form_review():
@@ -644,7 +596,7 @@ def show_form_review():
                 st.write(
                     f"- **Fecha revisión:** {selected_form.fecha_revision.strftime('%Y-%m-%d %H:%M')}")
             if selected_form.revisado_por:
-                st.write(f"- **Revisado por:** {selected_form.revisado_por}")
+                st.write(f"- **Estado:** Revisado")
 
         # Show related data
         st.subheader("📚 Contenido del Formulario")
@@ -727,10 +679,6 @@ def show_form_review():
                     st.write(f"**Certificación {i}:**")
                     st.write(f"- Nombre: {cert.nombre}")
                     st.write(f"- Fecha obtención: {cert.fecha_obtencion}")
-                    if cert.fecha_vencimiento:
-                        st.write(
-                            f"- Fecha vencimiento: {cert.fecha_vencimiento}")
-                    st.write(f"- Vigente: {'Sí' if cert.vigente else 'No'}")
                     st.write("---")
             else:
                 st.info("No hay certificaciones registradas.")
@@ -1059,7 +1007,7 @@ def show_data_export(all_forms):
                     'Estado': form.estado.value,
                     'Fecha Envío': form.fecha_envio.strftime('%Y-%m-%d %H:%M') if form.fecha_envio else '',
                     'Fecha Revisión': form.fecha_revision.strftime('%Y-%m-%d %H:%M') if form.fecha_revision else '',
-                    'Revisado Por': form.revisado_por or '',
+                    'Estado Revisión': 'Revisado' if form.revisado_por else 'Pendiente',
                     'Cursos': len(form.cursos_capacitacion),
                     'Publicaciones': len(form.publicaciones),
                     'Eventos': len(form.eventos_academicos),
@@ -1105,5 +1053,3 @@ def show_data_export(all_forms):
 
 if __name__ == "__main__":
     main()
-
-

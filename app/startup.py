@@ -32,27 +32,29 @@ def setup_logging():
         ]
     )
     
-    # Set specific logger levels
-    logging.getLogger("sqlalchemy.engine").setLevel(
-        logging.INFO if settings.is_development else logging.WARNING
-    )
+    # Set specific logger levels for better performance
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.dialects").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.orm").setLevel(logging.WARNING)
     
-    app_logger.log_operation("logging_configured", {"level": settings.log_level})
+    # Silenciar logs innecesarios para mejor rendimiento
+    # app_logger.log_operation("logging_configured", {"level": settings.log_level})
 
 def initialize_database():
     """Initialize and optimize database"""
     
     try:
-        app_logger.log_operation("database_initialization_started")
+        # app_logger.log_operation("database_initialization_started")  # Silenciado para rendimiento
         
         # Initialize database tables
         init_database()
         
         # Run optimization only if explicitly requested (disabled by default for faster startup)
         # Database optimization disabled for performance
-        app_logger.log_operation("database_optimization_skipped", {"reason": "disabled_for_performance"})
+        # app_logger.log_operation("database_optimization_skipped", {"reason": "disabled_for_performance"})  # Silenciado
         
-        app_logger.log_operation("database_initialization_completed")
+        # app_logger.log_operation("database_initialization_completed")  # Silenciado
         
     except Exception as e:
         app_logger.log_operation(
@@ -84,10 +86,10 @@ def create_required_directories():
                 "ERROR"
             )
     
-    app_logger.log_operation(
-        "directories_created",
-        {"directories": created_dirs}
-    )
+    # app_logger.log_operation(  # Silenciado para terminal limpia
+    #     "directories_created",
+    #     {"directories": created_dirs}
+    # )
 
 def validate_configuration():
     """Validate application configuration"""
@@ -111,13 +113,15 @@ def validate_configuration():
     
     # Log configuration issues
     if issues:
-        app_logger.log_operation(
-            "configuration_issues_detected",
-            {"issues": issues},
-            "WARNING"
-        )
+        # app_logger.log_operation(  # Silenciado para terminal limpia
+        #     "configuration_issues_detected",
+        #     {"issues": issues},
+        #     "WARNING"
+        # )
+        pass
     else:
-        app_logger.log_operation("configuration_validated")
+        # app_logger.log_operation("configuration_validated")  # Silenciado
+        pass
     
     return issues
 
@@ -152,19 +156,19 @@ def startup_application():
         health_status = "healthy"  # Simplified health status
         
         # 6. Performance monitoring disabled for optimization
-        print("📊 Performance monitoring started (interval: 60s)")
-        app_logger.log_operation("performance_monitoring_started")
+        # print("📊 Performance monitoring started (interval: 60s)")  # Silenciado
+        # app_logger.log_operation("performance_monitoring_started")  # Silenciado
         
         startup_duration = (datetime.utcnow() - startup_start).total_seconds()
         
-        app_logger.log_operation(
-            "application_startup_completed",
-            {
-                "duration_seconds": startup_duration,
-                "health_status": health_status,
-                "configuration_issues": len(config_issues)
-            }
-        )
+        # app_logger.log_operation(  # Silenciado para terminal limpia
+        #     "application_startup_completed",
+        #     {
+        #         "duration_seconds": startup_duration,
+        #         "health_status": health_status,
+        #         "configuration_issues": len(config_issues)
+        #     }
+        # )
         
         return {
             "status": "success",

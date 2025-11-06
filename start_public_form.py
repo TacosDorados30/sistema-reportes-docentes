@@ -71,8 +71,8 @@ def start_public_form():
     print("   (Presiona Ctrl+C para detener)")
     print()
     
-    # Ruta del formulario público
-    form_path = Path(__file__).parent / "dashboard" / "public_form.py"
+    # Ruta del formulario público actualizado
+    form_path = Path(__file__).parent / "dashboard" / "pages" / "formulario.py"
     
     try:
         # Configurar variables de entorno

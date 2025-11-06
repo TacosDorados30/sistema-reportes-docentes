@@ -123,6 +123,8 @@ class CorrectionTokenManager:
                     formulario_completo.reconocimientos)
                 formulario_data['certificaciones'] = self._serialize_certificaciones(
                     formulario_completo.certificaciones)
+                formulario_data['otras_actividades'] = self._serialize_otras_actividades(
+                    formulario_completo.otras_actividades)
 
             return formulario_data
 
@@ -269,7 +271,19 @@ class CorrectionTokenManager:
 
         return [{
             'nombre': cert.nombre,
-            'fecha_obtencion': cert.fecha_obtencion.isoformat() if cert.fecha_obtencion else None,
-            'fecha_vencimiento': cert.fecha_vencimiento.isoformat() if cert.fecha_vencimiento else None,
-            'vigente': cert.vigente
+            'fecha_obtencion': cert.fecha_obtencion.isoformat() if cert.fecha_obtencion else None
         } for cert in certificaciones]
+
+    def _serialize_otras_actividades(self, otras_actividades):
+        """Serializa otras actividades académicas"""
+        if not otras_actividades:
+            return []
+
+        return [{
+            'categoria': actividad.categoria,
+            'titulo': actividad.titulo,
+            'descripcion': actividad.descripcion,
+            'fecha': actividad.fecha.isoformat() if actividad.fecha else None,
+            'cantidad': actividad.cantidad,
+            'observaciones': actividad.observaciones
+        } for actividad in otras_actividades]

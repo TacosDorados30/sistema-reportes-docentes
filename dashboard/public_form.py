@@ -35,8 +35,6 @@ if hasattr(st, 'source_util'):
     try:
         # Obtener las páginas registradas
         pages_to_hide = [
-            'advanced_analytics',
-            'backup_management',
             'data_export',
             'form_review',
             'report_generation'
@@ -499,10 +497,7 @@ def show_certificaciones():
         for i, cert in enumerate(st.session_state.certificaciones):
             col1, col2 = st.columns([4, 1])
             with col1:
-                vigencia = "✅ Vigente" if cert['vigente'] else "❌ Vencida"
-                vencimiento = f" (Vence: {cert['fecha_vencimiento']})" if cert['fecha_vencimiento'] else ""
-                st.write(
-                    f"**{cert['nombre']}** - Obtenida: {cert['fecha_obtencion']} {vigencia}{vencimiento}")
+                st.write(f"**{cert['nombre']}** - Obtenida: {cert['fecha_obtencion']}")
             with col2:
                 if st.button("🗑️", key=f"del_cert_{i}", help="Eliminar certificación"):
                     st.session_state.certificaciones.pop(i)
@@ -511,27 +506,16 @@ def show_certificaciones():
 
     # Form to add new certification
     with st.expander("➕ Agregar Certificación", expanded=False):
-        col1, col2 = st.columns(2)
-
-        with col1:
-            nombre_certificacion = st.text_input(
-                "Nombre de la Certificación", key="nueva_cert_nombre")
-            fecha_obtencion = st.date_input(
-                "Fecha de Obtención", key="nueva_cert_obtencion")
-
-        with col2:
-            fecha_vencimiento = st.date_input(
-                "Fecha de Vencimiento", key="nueva_cert_vencimiento", value=None)
-            vigente = st.checkbox(
-                "Vigente", key="nueva_cert_vigente", value=True)
+        nombre_certificacion = st.text_input(
+            "Nombre de la Certificación", key="nueva_cert_nombre")
+        fecha_obtencion = st.date_input(
+            "Fecha de Obtención", key="nueva_cert_obtencion")
 
         if st.button("➕ Agregar Certificación"):
             if nombre_certificacion and fecha_obtencion:
                 nueva_certificacion = {
                     'nombre': nombre_certificacion,
-                    'fecha_obtencion': fecha_obtencion,
-                    'fecha_vencimiento': fecha_vencimiento,
-                    'vigente': vigente
+                    'fecha_obtencion': fecha_obtencion
                 }
                 st.session_state.certificaciones.append(nueva_certificacion)
                 st.success(
@@ -807,12 +791,7 @@ def main():
 
     # Footer
     st.divider()
-    st.markdown("""
-    <div style="text-align: center; color: #666; font-size: 0.9rem;">
-        <p>Sistema de Reportes Docentes v1.0 | 
-        Para soporte técnico contacte al área de sistemas</p>
-    </div>
-    """, unsafe_allow_html=True)
+
 
 
 if __name__ == "__main__":

@@ -116,12 +116,7 @@ tail -f logs/audit.log
 ### Dashboard Principal
 - Resumen de formularios por estado
 - Distribución de actividades académicas
-- Actividad reciente del sistema
-
-### Análisis Avanzado
-- Tendencias temporales
-- Comparaciones por período
-- Estadísticas de calidad de datos
+- Análisis de datos y tendencias
 - Reportes personalizables
 
 ## 🚨 Solución de Problemas

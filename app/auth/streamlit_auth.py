@@ -147,8 +147,6 @@ class StreamlitAuth:
         Por seguridad, las contraseñas no pueden ser recuperadas automáticamente.
         """)
 
-
-
     def logout(self):
         """Logout current user"""
 
@@ -170,8 +168,6 @@ class StreamlitAuth:
         self._clear_session()
         st.success("Sesión cerrada exitosamente")
         st.rerun()
-
-
 
     def _clear_session(self):
         """Clear session state"""
@@ -208,27 +204,6 @@ class StreamlitAuth:
         if st.sidebar.button("🚪 Cerrar Sesión", type="secondary", use_container_width=True):
             self.logout()
 
-        # Session info - moved to expander (optional to view)
-        with st.sidebar.expander("ℹ️ Información de Sesión"):
-            st.write(f"**Usuario:** {user_info['username']}")
-
-            # Handle datetime formatting safely
-            created_at = user_info['created_at']
-            if isinstance(created_at, str):
-                st.write(f"**Inicio:** {created_at[:19]}")
-            else:
-                st.write(
-                    f"**Inicio:** {created_at.strftime('%Y-%m-%d %H:%M:%S')}")
-
-            last_activity = user_info['last_activity']
-            if isinstance(last_activity, str):
-                st.write(f"**Última actividad:** {last_activity[:19]}")
-            else:
-                st.write(
-                    f"**Última actividad:** {last_activity.strftime('%Y-%m-%d %H:%M:%S')}")
-
-
-
     def show_admin_menu(self):
         """Show admin menu options"""
 
@@ -238,16 +213,8 @@ class StreamlitAuth:
         st.sidebar.markdown("---")
         st.sidebar.subheader("⚙️ Administración")
 
-        # User management
-        if st.sidebar.button("👥 Gestión de Usuarios"):
-            st.session_state.show_user_management = True
-
-        # Session management
-        if st.sidebar.button("🔐 Sesiones Activas"):
-            st.session_state.show_session_management = True
-
-        # Change password
-        if st.sidebar.button("🔑 Cambiar Contraseña"):
+        # Change password and email
+        if st.sidebar.button("🔑 Cambiar Contraseña y Email"):
             st.session_state.show_password_change = True
 
     def show_user_management(self):
@@ -340,36 +307,81 @@ class StreamlitAuth:
                                 st.rerun()
 
     def show_password_change(self):
-        """Show password change form"""
+        """Show password and email change form"""
 
-        st.subheader("🔑 Cambiar Contraseña")
+        st.subheader("🔑 Cambiar Contraseña y Email")
 
         current_user = self.get_current_user()
         if not current_user:
             return
 
-        with st.form("change_password_form"):
-            old_password = st.text_input("Contraseña Actual", type="password")
-            new_password = st.text_input("Nueva Contraseña", type="password",
-                                         help="Mínimo 8 caracteres, debe incluir caracteres especiales")
-            confirm_password = st.text_input(
-                "Confirmar Nueva Contraseña", type="password")
+        # Show current info
+        st.info(
+            f"**Usuario actual:** {current_user['name']} ({current_user['email']})")
 
-            if st.form_submit_button("Cambiar Contraseña", type="primary"):
-                if not all([old_password, new_password, confirm_password]):
-                    st.error("Por favor, complete todos los campos")
-                elif new_password != confirm_password:
-                    st.error("Las contraseñas no coinciden")
-                elif len(new_password) < 8:
-                    st.error("La contraseña debe tener al menos 8 caracteres")
-                else:
-                    if self.auth_manager.change_password(current_user['username'], old_password, new_password):
-                        st.success("Contraseña cambiada exitosamente")
-                        # Force re-authentication
-                        self.logout()
-                    else:
+        # Create tabs for different changes
+        tab1, tab2 = st.tabs(["🔑 Cambiar Contraseña", "📧 Cambiar Email"])
+
+        with tab1:
+            with st.form("change_password_form"):
+                st.write("**Cambiar Contraseña:**")
+                old_password = st.text_input(
+                    "Contraseña Actual", type="password")
+                new_password = st.text_input("Nueva Contraseña", type="password",
+                                             help="Mínimo 8 caracteres, debe incluir caracteres especiales")
+                confirm_password = st.text_input(
+                    "Confirmar Nueva Contraseña", type="password")
+
+                if st.form_submit_button("Cambiar Contraseña", type="primary"):
+                    if not all([old_password, new_password, confirm_password]):
+                        st.error("Por favor, complete todos los campos")
+                    elif new_password != confirm_password:
+                        st.error("Las contraseñas no coinciden")
+                    elif len(new_password) < 8:
                         st.error(
-                            "Error al cambiar contraseña. Verifique su contraseña actual.")
+                            "La contraseña debe tener al menos 8 caracteres")
+                    else:
+                        if self.auth_manager.change_password(current_user['username'], old_password, new_password):
+                            st.success("Contraseña cambiada exitosamente")
+                            # Force re-authentication
+                            self.logout()
+                        else:
+                            st.error(
+                                "Error al cambiar contraseña. Verifique su contraseña actual.")
+
+        with tab2:
+            with st.form("change_email_form"):
+                st.write("**Cambiar Email:**")
+                current_password = st.text_input(
+                    "Contraseña Actual (para confirmar)", type="password")
+                new_email = st.text_input("Nuevo Email",
+                                          value=current_user['email'],
+                                          help="Ingrese el nuevo email para el administrador")
+                new_name = st.text_input("Nombre Completo",
+                                         value=current_user['name'],
+                                         help="Puede actualizar también su nombre")
+
+                if st.form_submit_button("Actualizar Información", type="primary"):
+                    if not all([current_password, new_email, new_name]):
+                        st.error("Por favor, complete todos los campos")
+                    elif "@" not in new_email or "." not in new_email:
+                        st.error("Por favor, ingrese un email válido")
+                    else:
+                        # Verify current password first
+                        session_data = self.auth_manager.authenticate(
+                            current_user['username'], current_password)
+                        if session_data:
+                            if self.auth_manager.update_user_info(current_user['username'], new_name, new_email):
+                                st.success(
+                                    "Información actualizada exitosamente")
+                                # Update session info
+                                st.session_state.user_info['email'] = new_email
+                                st.session_state.user_info['name'] = new_name
+                                st.rerun()
+                            else:
+                                st.error("Error al actualizar la información")
+                        else:
+                            st.error("Contraseña incorrecta")
 
 
 # Global authentication instance

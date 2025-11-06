@@ -5,7 +5,7 @@ from datetime import datetime, date
 from app.models.database import (
     FormularioEnvioDB, CursoCapacitacionDB, PublicacionDB, EventoAcademicoDB,
     DisenoCurricularDB, ExperienciaMovilidadDB, ReconocimientoDB, CertificacionDB,
-    AuditLogDB, EstadoFormularioEnum, MaestroAutorizadoDB
+    OtraActividadAcademicaDB, AuditLogDB, EstadoFormularioEnum, MaestroAutorizadoDB
 )
 from app.models.schemas import (
     FormData, FormularioEnvio, EstadoFormulario, MetricasResponse
@@ -40,6 +40,7 @@ class FormularioCRUD:
         self._add_movilidad(db_formulario.id, form_data.movilidad)
         self._add_reconocimientos(db_formulario.id, form_data.reconocimientos)
         self._add_certificaciones(db_formulario.id, form_data.certificaciones)
+        self._add_otras_actividades(db_formulario.id, form_data.otras_actividades)
         
         # Add audit log
         self._add_audit_log(db_formulario.id, "CREADO", None, "Formulario enviado por docente")
@@ -136,9 +137,7 @@ class FormularioCRUD:
                     cert = CertificacionDB(
                         formulario_id=db_formulario.id,
                         nombre=cert_data.get("nombre"),
-                        fecha_obtencion=datetime.fromisoformat(cert_data["fecha_obtencion"]).date() if cert_data.get("fecha_obtencion") else None,
-                        fecha_vencimiento=datetime.fromisoformat(cert_data["fecha_vencimiento"]).date() if cert_data.get("fecha_vencimiento") else None,
-                        vigente=cert_data.get("vigente", True)
+                        fecha_obtencion=datetime.fromisoformat(cert_data["fecha_obtencion"]).date() if cert_data.get("fecha_obtencion") else None
                     )
                     self.db.add(cert)
             
@@ -308,6 +307,10 @@ class FormularioCRUD:
             CertificacionDB.formulario_id.in_(approved_forms_query)
         ).count()
         
+        total_otras_actividades = self.db.query(OtraActividadAcademicaDB).filter(
+            OtraActividadAcademicaDB.formulario_id.in_(approved_forms_query)
+        ).count()
+        
         return MetricasResponse(
             total_formularios=total_formularios,
             formularios_pendientes=pendientes,
@@ -320,7 +323,8 @@ class FormularioCRUD:
             total_disenos_curriculares=total_disenos,
             total_movilidades=total_movilidades,
             total_reconocimientos=total_reconocimientos,
-            total_certificaciones=total_certificaciones
+            total_certificaciones=total_certificaciones,
+            total_otras_actividades=total_otras_actividades
         )
     
     def get_datos_por_periodo(self, year: int, quarter: Optional[int] = None) -> Dict[str, Any]:
@@ -427,19 +431,25 @@ class FormularioCRUD:
     
     def _add_certificaciones(self, formulario_id: int, certificaciones: List):
         for cert in certificaciones:
-            # Check if certification is still valid
-            vigente = True
-            if cert.fecha_vencimiento:
-                vigente = cert.fecha_vencimiento > date.today()
-            
             db_cert = CertificacionDB(
                 formulario_id=formulario_id,
                 nombre=cert.nombre,
-                fecha_obtencion=cert.fecha_obtencion,
-                fecha_vencimiento=cert.fecha_vencimiento,
-                vigente=vigente
+                fecha_obtencion=cert.fecha_obtencion
             )
             self.db.add(db_cert)
+    
+    def _add_otras_actividades(self, formulario_id: int, otras_actividades: List):
+        for actividad in otras_actividades:
+            db_actividad = OtraActividadAcademicaDB(
+                formulario_id=formulario_id,
+                categoria=actividad.categoria,
+                titulo=actividad.titulo,
+                descripcion=actividad.descripcion,
+                fecha=actividad.fecha,
+                cantidad=actividad.cantidad,
+                observaciones=actividad.observaciones
+            )
+            self.db.add(db_actividad)
     
     def _add_audit_log(self, formulario_id: int, accion: str, usuario: str, comentario: str):
         audit = AuditLogDB(
@@ -556,11 +566,9 @@ class FormularioCRUD:
         ).all()
         
         nombres = [c.nombre for c in certificaciones]
-        vigentes = sum(1 for c in certificaciones if c.vigente)
         
         return {
             'total': len(certificaciones),
-            'vigentes': vigentes,
             'nombres': nombres
         }    
     # Métodos para sistema de versiones

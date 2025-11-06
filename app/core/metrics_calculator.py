@@ -390,7 +390,7 @@ class MetricsCalculator:
         
         score = (
             cursos.get('total', 0) * 2 +
-            certificaciones.get('vigentes', 0) * 3 +
+            certificaciones.get('total', 0) * 3 +
             movilidades.get('total', 0) * 5
         )
         
@@ -470,7 +470,7 @@ class MetricsCalculator:
             opportunities.append("Incrementar experiencias de movilidad académica")
         
         certificaciones = detailed_data.get('certificaciones', {})
-        if certificaciones.get('vigentes', 0) < 3:
+        if certificaciones.get('total', 0) < 3:
             opportunities.append("Obtener más certificaciones profesionales")
         
         publicaciones = detailed_data.get('publicaciones', {})

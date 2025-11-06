@@ -5,10 +5,54 @@ import pandas as pd
 from datetime import datetime, date, timedelta
 import sys
 import os
+import locale
+
+# Set Spanish locale for dates
+try:
+    locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+except:
+    try:
+        locale.setlocale(locale.LC_TIME, 'Spanish_Spain.1252')
+    except:
+        pass  # Keep default if Spanish locale not available
 
 # Add the project root to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__)))))
+
+
+def format_date_spanish(date_obj, format_type="full"):
+    """Format date in Spanish"""
+    months_spanish = {
+        'January': 'enero', 'February': 'febrero', 'March': 'marzo',
+        'April': 'abril', 'May': 'mayo', 'June': 'junio',
+        'July': 'julio', 'August': 'agosto', 'September': 'septiembre',
+        'October': 'octubre', 'November': 'noviembre', 'December': 'diciembre'
+    }
+
+    if format_type == "full":
+        # Format: "28 de octubre de 2025"
+        day = date_obj.day
+        month = months_spanish.get(date_obj.strftime(
+            '%B'), date_obj.strftime('%B').lower())
+        year = date_obj.year
+        return f"{day} de {month} de {year}"
+    elif format_type == "month_year":
+        # Format: "octubre 2025"
+        month = months_spanish.get(date_obj.strftime(
+            '%B'), date_obj.strftime('%B').lower())
+        year = date_obj.year
+        return f"{month} {year}"
+    elif format_type == "full_with_time":
+        # Format: "28 de octubre de 2025 a las 14:30"
+        day = date_obj.day
+        month = months_spanish.get(date_obj.strftime(
+            '%B'), date_obj.strftime('%B').lower())
+        year = date_obj.year
+        time = date_obj.strftime('%H:%M')
+        return f"{day} de {month} de {year} a las {time}"
+
+    return str(date_obj)
 
 
 # Try to import optional components with error handling
@@ -107,11 +151,10 @@ def show_report_generation_page():
     # Report type selection
     report_type = st.sidebar.selectbox(
         "Tipo de reporte:",
-        ["annual", "quarterly", "data_table"],
+        ["annual", "quarterly"],
         format_func=lambda x: {
             "annual": "📊 Reporte Anual Narrativo",
-            "quarterly": "📈 Resumen Trimestral",
-            "data_table": "📋 Reporte de Datos Tabulares"
+            "quarterly": "📈 Resumen Trimestral"
         }[x]
     )
 
@@ -141,34 +184,15 @@ def show_report_generation_page():
             max_value=max_date
         )
 
-    # Additional options
-    with st.sidebar.expander("⚙️ Opciones Avanzadas"):
-        include_trends = st.checkbox(
-            "Incluir análisis de tendencias", value=True)
-        include_highlights = st.checkbox(
-            "Incluir elementos destacados", value=True)
-        report_tone = st.selectbox(
-            "Tono del reporte:",
-            ["professional", "academic", "executive"],
-            format_func=lambda x: {
-                "professional": "Profesional",
-                "academic": "Académico",
-                "executive": "Ejecutivo"
-            }[x]
-        )
-
-        custom_title = st.text_input(
-            "Título personalizado (opcional):",
-            placeholder="Reporte de Actividades Docentes"
-        )
+    # Set default values for removed advanced options
+    include_trends = True
+    include_highlights = True
+    report_tone = "professional"
+    custom_title = ""
 
     # Main content area
-    if history_manager:
-        tab1, tab2, tab3 = st.tabs(
-            ["🔧 Generar Reporte", "📚 Historial", "📊 Estadísticas"])
-    else:
-        tab1 = st.container()
-        st.info("💡 Funciones de historial no disponibles - solo generación básica")
+    # Simplificar a solo las pestañas esenciales
+    tab1, tab2 = st.tabs(["🔧 Generar Reporte", "👤 Detalle por Maestro"])
 
     with tab1:
         # Report generation interface
@@ -192,7 +216,7 @@ def show_report_generation_page():
                 period_start, period_end = date_range
                 filtered_forms = filter_forms_by_period(
                     all_forms, period_start, period_end)
-                period_text = f"{period_start.strftime('%B %Y')} - {period_end.strftime('%B %Y')}"
+                period_text = f"{format_date_spanish(period_start, 'month_year')} - {format_date_spanish(period_end, 'month_year')}"
             else:
                 st.warning("Por favor seleccione un rango de fechas válido.")
                 return
@@ -258,11 +282,14 @@ def show_report_generation_page():
                     st.metric("Reconocimientos",
                               activity_summary['reconocimientos'])
 
-                # Segunda fila para certificaciones
+                # Segunda fila para certificaciones y otras actividades
                 col4, col5, col6 = st.columns(3)
                 with col4:
                     st.metric("Certificaciones",
                               activity_summary['certificaciones'])
+                with col5:
+                    st.metric("Otras Actividades",
+                              activity_summary.get('otras_actividades', 0))
 
             # Export format selection
             st.subheader("📤 Opciones de Exportación")
@@ -280,9 +307,18 @@ def show_report_generation_page():
                         )
                     else:
                         # Generate simple report without advanced components
+                        # Generate Spanish title
+                        if report_type == "annual":
+                            default_title = f"Reporte Anual {period_start.year}"
+                        elif report_type == "quarterly":
+                            quarter = ((period_start.month - 1) // 3) + 1
+                            default_title = f"Resumen Trimestral Q{quarter} {period_start.year}"
+                        else:
+                            default_title = f"Reporte {period_start.year}"
+
                         generate_simple_report_display(
                             filtered_forms, report_type, period_start, period_end,
-                            custom_title or f"Reporte {report_type} {period_start.year}"
+                            custom_title or default_title
                         )
 
             with col2:
@@ -294,7 +330,15 @@ def show_report_generation_page():
                 )
 
                 # Generate content for direct download
-                title = custom_title or f"Reporte {report_type} {period_start.year}"
+                if report_type == "annual":
+                    default_title = f"Reporte Anual {period_start.year}"
+                elif report_type == "quarterly":
+                    quarter = ((period_start.month - 1) // 3) + 1
+                    default_title = f"Resumen Trimestral Q{quarter} {period_start.year}"
+                else:
+                    default_title = f"Reporte {period_start.year}"
+
+                title = custom_title or default_title
                 filename_base = f"{title.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}"
 
                 if export_format == "PDF":
@@ -408,37 +452,106 @@ def show_report_generation_page():
                     try:
                         from pptx import Presentation
                         from io import BytesIO
+                        import os
 
-                        prs = Presentation()
+                        # Load the template from assets folder
+                        template_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                                                     'assets', 'Informe Actividades DIyT_2do Trimestre 2025_CODI.pptx')
 
-                        # Title slide
-                        slide_layout = prs.slide_layouts[0]
-                        slide = prs.slides.add_slide(slide_layout)
-                        title_placeholder = slide.shapes.title
-                        subtitle_placeholder = slide.placeholders[1]
+                        if not os.path.exists(template_path):
+                            st.warning(
+                                "⚠️ Plantilla PowerPoint no encontrada, usando formato básico")
+                            prs = Presentation()
 
-                        title_placeholder.text = title
-                        period_text = f"Año {period_start.year}" if period_start.year == period_end.year else f"{period_start.strftime('%B %Y')} - {period_end.strftime('%B %Y')}"
-                        subtitle_placeholder.text = f"Período: {period_text}"
+                            # Create basic slides if template not found
+                            slide_layout = prs.slide_layouts[0]
+                            slide = prs.slides.add_slide(slide_layout)
+                            title_placeholder = slide.shapes.title
+                            subtitle_placeholder = slide.placeholders[1]
+                            title_placeholder.text = title
+                            period_text = f"Año {period_start.year}" if period_start.year == period_end.year else f"{format_date_spanish(period_start, 'month_year')} - {format_date_spanish(period_end, 'month_year')}"
+                            subtitle_placeholder.text = f"Período: {period_text}"
+                        else:
+                            # Use template
+                            prs = Presentation(template_path)
 
-                        # Content slide
-                        slide_layout = prs.slide_layouts[1]
-                        slide = prs.slides.add_slide(slide_layout)
-                        title_placeholder = slide.shapes.title
-                        content_placeholder = slide.placeholders[1]
+                            # Update slide 1 (title slide) with current dates
+                            if len(prs.slides) > 0:
+                                slide1 = prs.slides[0]
 
-                        title_placeholder.text = "Resumen de Actividades"
+                                # Update title with current period
+                                if report_type == "quarterly":
+                                    quarter = (
+                                        (period_start.month - 1) // 3) + 1
+                                    quarter_names = {
+                                        1: "1er", 2: "2do", 3: "3er", 4: "4to"}
+                                    quarter_name = quarter_names.get(
+                                        quarter, str(quarter))
+                                    new_title = f"Informe Actividades DIyT_{quarter_name} Trimestre {period_start.year}_CODI"
+                                else:
+                                    new_title = f"Informe Actividades DIyT_Anual {period_start.year}_CODI"
 
-                        summary = calculate_activity_summary(filtered_forms)
-                        content_text = f"""Cursos de Capacitación: {summary['cursos']}
-Publicaciones: {summary['publicaciones']}
-Eventos Académicos: {summary['eventos']}
-Diseños Curriculares: {summary['disenos']}
-Experiencias de Movilidad: {summary['movilidades']}
-Reconocimientos: {summary['reconocimientos']}
-Certificaciones: {summary['certificaciones']}"""
+                                # Update all text in slide 1
+                                for shape in slide1.shapes:
+                                    if hasattr(shape, 'text_frame'):
+                                        for paragraph in shape.text_frame.paragraphs:
+                                            if 'Informe Actividades' in paragraph.text:
+                                                paragraph.text = new_title
+                                            elif '2do Trimestre 2025' in paragraph.text:
+                                                if report_type == "quarterly":
+                                                    quarter = (
+                                                        (period_start.month - 1) // 3) + 1
+                                                    quarter_names = {
+                                                        1: "1er", 2: "2do", 3: "3er", 4: "4to"}
+                                                    quarter_name = quarter_names.get(
+                                                        quarter, str(quarter))
+                                                    paragraph.text = paragraph.text.replace(
+                                                        '2do Trimestre 2025', f'{quarter_name} Trimestre {period_start.year}')
+                                                else:
+                                                    paragraph.text = paragraph.text.replace(
+                                                        '2do Trimestre 2025', f'Año {period_start.year}')
 
-                        content_placeholder.text = content_text
+                            # Update slide 3 with actual data
+                            if len(prs.slides) > 2:
+                                slide3 = prs.slides[2]
+
+                                # Generate report content
+                                report_content = generate_simple_report(
+                                    filtered_forms, title, report_type, period_start, period_end)
+
+                                # Extract activities from report content
+                                lines = report_content.split('\n')
+                                activities_text = []
+
+                                for line in lines:
+                                    line = line.strip()
+                                    if line.startswith('> '):
+                                        # This is an activity line from our report
+                                        activity_line = line[2:]  # Remove "> "
+                                        activities_text.append(activity_line)
+
+                                # Update content in slide 3
+                                for shape in slide3.shapes:
+                                    if hasattr(shape, 'text_frame'):
+                                        current_text = shape.text_frame.text
+
+                                        # Replace content areas with actual data
+                                        if any(keyword in current_text.lower() for keyword in ['trabajos', 'cursos', 'eventos', 'actividades', 'docentes']):
+                                            # Clear existing content
+                                            shape.text_frame.clear()
+
+                                            # Add title paragraph
+                                            title_p = shape.text_frame.paragraphs[0]
+                                            title_p.text = f"En el Departamento se realizaron los siguientes productos durante el período {period_start.year}:"
+                                            title_p.font.bold = True
+
+                                            # Add activities
+                                            for activity in activities_text:
+                                                p = shape.text_frame.add_paragraph()
+                                                p.text = activity
+                                                p.level = 0
+
+                                            break
 
                         buffer = BytesIO()
                         prs.save(buffer)
@@ -466,47 +579,304 @@ Certificaciones: {summary['certificaciones']}"""
         else:
             st.info("No hay datos disponibles para el período seleccionado.")
 
-    if history_manager:
-        with tab2:
-            # Report history using new ReportHistory class
-            if history_manager:
-                history_manager.show_history_interface()
+    # Tab 2: Detalle por Maestro
+    with tab2:
+        show_teacher_detail_tab()
+
+
+def show_teacher_detail_tab():
+    """Show detailed information for each teacher"""
+    st.subheader("👤 Detalle por Maestro")
+    st.markdown(
+        "Consulte la información detallada de cada maestro y sus actividades académicas.")
+
+    # Load data
+    db = SessionLocal()
+    try:
+        crud = FormularioCRUD(db)
+        all_forms = crud.get_all_formularios()
+
+        if not all_forms:
+            st.info("📝 No hay formularios registrados en el sistema.")
+            return
+
+        # Get unique teachers
+        teachers = {}
+        for form in all_forms:
+            if form.es_version_activa:  # Only active versions
+                key = (form.nombre_completo, form.correo_institucional)
+                if key not in teachers:
+                    teachers[key] = {
+                        'nombre': form.nombre_completo,
+                        'email': form.correo_institucional,
+                        'formularios': []
+                    }
+                teachers[key]['formularios'].append(form)
+
+        if not teachers:
+            st.info("📝 No hay formularios activos en el sistema.")
+            return
+
+        # Teacher selection
+        teacher_names = [
+            f"{teacher['nombre']} ({teacher['email']})" for teacher in teachers.values()]
+        teacher_names.sort()
+
+        selected_teacher_name = st.selectbox(
+            "🔍 Seleccionar Maestro:",
+            ["Seleccione un maestro..."] + teacher_names,
+            help="Seleccione un maestro para ver sus actividades detalladas"
+        )
+
+        if selected_teacher_name == "Seleccione un maestro...":
+            st.info(
+                "👆 Seleccione un maestro de la lista para ver su información detallada.")
+            return
+
+        # Find selected teacher
+        selected_teacher = None
+        for teacher in teachers.values():
+            if f"{teacher['nombre']} ({teacher['email']})" == selected_teacher_name:
+                selected_teacher = teacher
+                break
+
+        if not selected_teacher:
+            st.error("❌ Maestro no encontrado.")
+            return
+
+        # Display teacher information
+        st.markdown("---")
+
+        # Teacher header
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.markdown(f"### 👨‍🏫 {selected_teacher['nombre']}")
+            st.markdown(f"📧 **Email:** {selected_teacher['email']}")
+
+        with col2:
+            total_forms = len(selected_teacher['formularios'])
+            approved_forms = len(
+                [f for f in selected_teacher['formularios'] if f.estado.value == 'APROBADO'])
+            st.metric("Formularios", f"{approved_forms}/{total_forms}")
+
+        # Forms summary
+        if selected_teacher['formularios']:
+            st.markdown("#### 📋 Resumen de Formularios")
+
+            forms_data = []
+            for form in selected_teacher['formularios']:
+                status_icon = {
+                    'APROBADO': '✅',
+                    'PENDIENTE': '⏳',
+                    'RECHAZADO': '❌'
+                }.get(form.estado.value, '❓')
+
+                forms_data.append({
+                    'ID': form.id,
+                    'Estado': f"{status_icon} {form.estado.value}",
+                    'Período': f"{form.año_academico} - {form.trimestre}",
+                    'Fecha Envío': form.fecha_envio.strftime('%d/%m/%Y') if form.fecha_envio else 'N/A',
+                    'Estado Revisión': 'Revisado' if form.revisado_por else 'Pendiente'
+                })
+
+            # Display forms table
+            import pandas as pd
+            df_forms = pd.DataFrame(forms_data)
+            st.dataframe(df_forms, use_container_width=True, hide_index=True)
+
+            # Detailed view for each form
+            st.markdown("#### 🔍 Información Detallada por Formulario")
+
+            for form in selected_teacher['formularios']:
+                with st.expander(f"📄 Formulario ID {form.id} - {form.estado.value} ({form.año_academico} - {form.trimestre})"):
+                    show_form_details(form)
+
+        else:
+            st.info("📝 Este maestro no tiene formularios registrados.")
+
+    except Exception as e:
+        st.error(f"❌ Error cargando datos: {str(e)}")
+    finally:
+        db.close()
+
+
+def show_form_details(form):
+    """Show detailed information for a specific form"""
+
+    # Basic information
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.write("**📋 Información General:**")
+        st.write(f"- **ID:** {form.id}")
+        st.write(f"- **Estado:** {form.estado.value}")
+        st.write(f"- **Período:** {form.año_academico} - {form.trimestre}")
+        st.write(
+            f"- **Fecha de envío:** {form.fecha_envio.strftime('%d/%m/%Y %H:%M') if form.fecha_envio else 'N/A'}")
+
+    with col2:
+        st.write("**👥 Información de Revisión:**")
+        st.write(
+            f"- **Estado:** {'Revisado' if form.revisado_por else 'No revisado'}")
+        st.write(
+            f"- **Fecha de revisión:** {form.fecha_revision.strftime('%d/%m/%Y %H:%M') if form.fecha_revision else 'No revisado'}")
+        st.write(f"- **Versión:** {form.version}")
+        st.write(
+            f"- **Versión activa:** {'Sí' if form.es_version_activa else 'No'}")
+
+    # Activities summary
+    activities_summary = []
+
+    if hasattr(form, 'cursos_capacitacion') and form.cursos_capacitacion:
+        total_horas = sum(
+            curso.horas for curso in form.cursos_capacitacion if curso.horas)
+        activities_summary.append(
+            f"📚 **{len(form.cursos_capacitacion)} Cursos** ({total_horas} horas)")
+
+    if hasattr(form, 'publicaciones') and form.publicaciones:
+        activities_summary.append(
+            f"📖 **{len(form.publicaciones)} Publicaciones**")
+
+    if hasattr(form, 'eventos_academicos') and form.eventos_academicos:
+        activities_summary.append(
+            f"🎯 **{len(form.eventos_academicos)} Eventos**")
+
+    if hasattr(form, 'diseno_curricular') and form.diseno_curricular:
+        activities_summary.append(
+            f"📐 **{len(form.diseno_curricular)} Diseños Curriculares**")
+
+    if hasattr(form, 'movilidad') and form.movilidad:
+        activities_summary.append(
+            f"🌍 **{len(form.movilidad)} Experiencias de Movilidad**")
+
+    if hasattr(form, 'reconocimientos') and form.reconocimientos:
+        activities_summary.append(
+            f"🏆 **{len(form.reconocimientos)} Reconocimientos**")
+
+    if hasattr(form, 'certificaciones') and form.certificaciones:
+        activities_summary.append(
+            f"📜 **{len(form.certificaciones)} Certificaciones**")
+
+    if hasattr(form, 'otras_actividades') and form.otras_actividades:
+        activities_summary.append(
+            f"🎯 **{len(form.otras_actividades)} Otras Actividades**")
+
+    if activities_summary:
+        st.write("**🎯 Resumen de Actividades:**")
+        st.write(" | ".join(activities_summary))
+    else:
+        st.write("**🎯 Actividades:** Sin actividades registradas")
+
+    # Detailed activities in tabs
+    if any([
+        hasattr(form, 'cursos_capacitacion') and form.cursos_capacitacion,
+        hasattr(form, 'publicaciones') and form.publicaciones,
+        hasattr(form, 'eventos_academicos') and form.eventos_academicos,
+        hasattr(form, 'diseno_curricular') and form.diseno_curricular,
+        hasattr(form, 'movilidad') and form.movilidad,
+        hasattr(form, 'reconocimientos') and form.reconocimientos,
+        hasattr(form, 'certificaciones') and form.certificaciones,
+        hasattr(form, 'otras_actividades') and form.otras_actividades
+    ]):
+
+        tabs = st.tabs(["📚 Cursos", "📖 Publicaciones", "🎯 Eventos", "📐 Diseño",
+                       "🌍 Movilidad", "🏆 Reconocimientos", "📜 Certificaciones", "🎯 Otras"])
+
+        # Cursos
+        with tabs[0]:
+            if hasattr(form, 'cursos_capacitacion') and form.cursos_capacitacion:
+                for i, curso in enumerate(form.cursos_capacitacion, 1):
+                    st.write(f"**{i}. {curso.nombre_curso}**")
+                    st.write(f"   📅 Fecha: {curso.fecha}")
+                    st.write(f"   ⏰ Horas: {curso.horas}")
+                    st.write("---")
             else:
-                st.info("Funcionalidad de historial no disponible")
+                st.info("Sin cursos registrados")
 
-        with tab3:
-            # Storage statistics using new ReportHistory class
-            if history_manager:
-                st.subheader("📊 Estadísticas de Reportes")
-                stats = history_manager.get_statistics()
-
-                col1, col2, col3, col4 = st.columns(4)
-
-                with col1:
-                    st.metric("Total Reportes", stats['total_reportes'])
-
-                with col2:
-                    st.metric("Última Semana", stats['reportes_ultima_semana'])
-
-                with col3:
-                    st.metric("Último Mes", stats['reportes_ultimo_mes'])
-
-                with col4:
-                    if stats.get('reporte_mas_reciente'):
-                        fecha_reciente = datetime.fromisoformat(
-                            stats['reporte_mas_reciente'])
-                        st.metric("Más Reciente",
-                                  fecha_reciente.strftime('%d/%m/%Y'))
-                    else:
-                        st.metric("Más Reciente", "N/A")
-
-                # Mostrar tipos más comunes
-                if stats['tipos_mas_comunes']:
-                    st.subheader("📈 Tipos de Reportes Más Generados")
-                    for tipo, count in list(stats['tipos_mas_comunes'].items())[:5]:
-                        st.write(f"- **{tipo}**: {count} reportes")
+        # Publicaciones
+        with tabs[1]:
+            if hasattr(form, 'publicaciones') and form.publicaciones:
+                for i, pub in enumerate(form.publicaciones, 1):
+                    st.write(f"**{i}. {pub.titulo}**")
+                    st.write(f"   👥 Autores: {pub.autores}")
+                    st.write(f"   📰 Evento/Revista: {pub.evento_revista}")
+                    st.write(f"   📊 Estatus: {pub.estatus.value}")
+                    st.write("---")
             else:
-                st.info("Estadísticas no disponibles")
+                st.info("Sin publicaciones registradas")
+
+        # Eventos
+        with tabs[2]:
+            if hasattr(form, 'eventos_academicos') and form.eventos_academicos:
+                for i, evento in enumerate(form.eventos_academicos, 1):
+                    st.write(f"**{i}. {evento.nombre_evento}**")
+                    st.write(f"   📅 Fecha: {evento.fecha}")
+                    st.write(
+                        f"   🎭 Participación: {evento.tipo_participacion.value}")
+                    st.write("---")
+            else:
+                st.info("Sin eventos registrados")
+
+        # Diseño Curricular
+        with tabs[3]:
+            if hasattr(form, 'diseno_curricular') and form.diseno_curricular:
+                for i, diseno in enumerate(form.diseno_curricular, 1):
+                    st.write(f"**{i}. {diseno.nombre_curso}**")
+                    if diseno.descripcion:
+                        st.write(f"   📝 Descripción: {diseno.descripcion}")
+                    st.write("---")
+            else:
+                st.info("Sin diseños curriculares registrados")
+
+        # Movilidad
+        with tabs[4]:
+            if hasattr(form, 'movilidad') and form.movilidad:
+                for i, mov in enumerate(form.movilidad, 1):
+                    st.write(f"**{i}. {mov.descripcion}**")
+                    st.write(f"   🏷️ Tipo: {mov.tipo.value}")
+                    st.write(f"   📅 Fecha: {mov.fecha}")
+                    st.write("---")
+            else:
+                st.info("Sin experiencias de movilidad registradas")
+
+        # Reconocimientos
+        with tabs[5]:
+            if hasattr(form, 'reconocimientos') and form.reconocimientos:
+                for i, rec in enumerate(form.reconocimientos, 1):
+                    st.write(f"**{i}. {rec.nombre}**")
+                    st.write(f"   🏷️ Tipo: {rec.tipo.value}")
+                    st.write(f"   📅 Fecha: {rec.fecha}")
+                    st.write("---")
+            else:
+                st.info("Sin reconocimientos registrados")
+
+        # Certificaciones
+        with tabs[6]:
+            if hasattr(form, 'certificaciones') and form.certificaciones:
+                for i, cert in enumerate(form.certificaciones, 1):
+                    st.write(f"**{i}. {cert.nombre}**")
+                    st.write(
+                        f"   📅 Fecha de obtención: {cert.fecha_obtencion}")
+                    st.write("---")
+            else:
+                st.info("Sin certificaciones registradas")
+
+        # Otras Actividades
+        with tabs[7]:
+            if hasattr(form, 'otras_actividades') and form.otras_actividades:
+                for i, otra in enumerate(form.otras_actividades, 1):
+                    st.write(f"**{i}. {otra.titulo}**")
+                    st.write(f"   🏷️ Categoría: {otra.categoria}")
+                    if otra.descripcion:
+                        st.write(f"   📝 Descripción: {otra.descripcion}")
+                    st.write(f"   📅 Fecha: {otra.fecha}")
+                    if otra.cantidad:
+                        st.write(f"   📊 Cantidad: {otra.cantidad}")
+                    if otra.observaciones:
+                        st.write(f"   💭 Observaciones: {otra.observaciones}")
+                    st.write("---")
+            else:
+                st.info("Sin otras actividades registradas")
 
 
 @st.cache_data(ttl=60)  # Reduced cache time for more frequent updates
@@ -523,11 +893,32 @@ def load_report_data():
 
 
 def filter_forms_by_period(forms, start_date, end_date):
-    """Filter forms by date period"""
-    return [
-        f for f in forms
-        if f.fecha_envio and start_date <= f.fecha_envio.date() <= end_date
-    ]
+    """Filter forms by academic period (año_academico and trimestre) instead of fecha_envio"""
+    # Extract year from the date range
+    target_year = start_date.year
+
+    # For annual reports, filter by año_academico
+    if start_date.month == 1 and start_date.day == 1 and end_date.month == 12 and end_date.day == 31:
+        # Annual report - filter by año_academico only
+        return [
+            f for f in forms
+            if f.año_academico == target_year
+        ]
+    else:
+        # Quarterly or custom report - determine quarter from dates
+        if start_date.month <= 3:
+            target_quarter = "Trimestre 1"
+        elif start_date.month <= 6:
+            target_quarter = "Trimestre 2"
+        elif start_date.month <= 9:
+            target_quarter = "Trimestre 3"
+        else:
+            target_quarter = "Trimestre 4"
+
+        return [
+            f for f in forms
+            if f.año_academico == target_year and f.trimestre == target_quarter
+        ]
 
 
 def get_quarter_dates(quarter, year):
@@ -586,10 +977,12 @@ def create_preview_dataframe(forms):
                     fresh_form.reconocimientos) if fresh_form.reconocimientos else 0
                 total_certificaciones = len(
                     fresh_form.certificaciones) if fresh_form.certificaciones else 0
+                total_otras_actividades = len(
+                    fresh_form.otras_actividades) if fresh_form.otras_actividades else 0
             else:
                 # Fallback to zero counts if form not found
                 total_cursos = total_publicaciones = total_eventos = 0
-                total_disenos = total_movilidades = total_reconocimientos = total_certificaciones = 0
+                total_disenos = total_movilidades = total_reconocimientos = total_certificaciones = total_otras_actividades = 0
 
             data.append({
                 'ID': form.id,
@@ -602,7 +995,8 @@ def create_preview_dataframe(forms):
                 'Diseños': total_disenos,
                 'Movilidades': total_movilidades,
                 'Reconocimientos': total_reconocimientos,
-                'Certificaciones': total_certificaciones
+                'Certificaciones': total_certificaciones,
+                'Otras Actividades': total_otras_actividades
             })
     finally:
         db.close()
@@ -624,6 +1018,7 @@ def generate_simple_report(forms, title, report_type, period_start, period_end):
     all_movilidades = []
     all_reconocimientos = []
     all_certificaciones = []
+    all_otras_actividades = []
 
     # Use a single database connection for efficiency
     db = SessionLocal()
@@ -713,8 +1108,20 @@ def generate_simple_report(forms, title, report_type, period_start, period_end):
                     for certificacion in fresh_form.certificaciones:
                         all_certificaciones.append({
                             'nombre': getattr(certificacion, 'nombre', ''),
-                            'fecha_obtencion': getattr(certificacion, 'fecha_obtencion', None),
-                            'vigente': getattr(certificacion, 'vigente', True)
+                            'fecha_obtencion': getattr(certificacion, 'fecha_obtencion', None)
+                        })
+            except:
+                pass
+
+            # Extract otras actividades
+            try:
+                if fresh_form.otras_actividades:
+                    for actividad in fresh_form.otras_actividades:
+                        all_otras_actividades.append({
+                            'categoria': getattr(actividad, 'categoria', ''),
+                            'titulo': getattr(actividad, 'titulo', ''),
+                            'descripcion': getattr(actividad, 'descripcion', None),
+                            'fecha': getattr(actividad, 'fecha', None)
                         })
             except:
                 pass
@@ -727,23 +1134,24 @@ def generate_simple_report(forms, title, report_type, period_start, period_end):
         return generate_annual_narrative_report(
             title, period_start, period_end, approved_forms,
             all_publicaciones, all_cursos, all_eventos, all_disenos,
-            all_movilidades, all_reconocimientos, all_certificaciones
+            all_movilidades, all_reconocimientos, all_certificaciones, all_otras_actividades
         )
     elif report_type == "quarterly":
         return generate_quarterly_narrative_report(
             title, period_start, period_end, approved_forms,
             all_publicaciones, all_cursos, all_eventos, all_disenos,
-            all_movilidades, all_reconocimientos, all_certificaciones
+            all_movilidades, all_reconocimientos, all_certificaciones, all_otras_actividades
         )
     else:
-        return generate_data_table_report(
+        # Default to annual report for any other type
+        return generate_annual_narrative_report(
             title, period_start, period_end, approved_forms,
             all_publicaciones, all_cursos, all_eventos, all_disenos,
-            all_movilidades, all_reconocimientos, all_certificaciones
+            all_movilidades, all_reconocimientos, all_certificaciones, all_otras_actividades
         )
 
 
-def generate_annual_narrative_report(title, period_start, period_end, approved_forms, publicaciones, cursos, eventos, disenos, movilidades, reconocimientos, certificaciones):
+def generate_annual_narrative_report(title, period_start, period_end, approved_forms, publicaciones, cursos, eventos, disenos, movilidades, reconocimientos, certificaciones, otras_actividades):
     """Generate annual narrative report with examples and detailed descriptions"""
 
     # Count totals
@@ -754,6 +1162,7 @@ def generate_annual_narrative_report(title, period_start, period_end, approved_f
     total_movilidades = len(movilidades)
     total_reconocimientos = len(reconocimientos)
     total_certificaciones = len(certificaciones)
+    total_otras_actividades = len(otras_actividades)
     total_docentes = len(approved_forms)
 
     # Get examples for narrative
@@ -763,35 +1172,69 @@ def generate_annual_narrative_report(title, period_start, period_end, approved_f
             if pub['titulo']:
                 tipo = "artículo" if "artículo" in pub['evento_revista'].lower(
                 ) else "ponencia" if "ponencia" in pub['evento_revista'].lower() else "publicación"
-                pub_examples.append(f"{tipo} *\"{pub['titulo']}\"*")
+                pub_examples.append(f"{tipo} {pub['titulo']}")
 
     curso_examples = []
     if cursos:
         unique_cursos = list(
             {curso['nombre']: curso for curso in cursos if curso['nombre']}.values())
         for curso in unique_cursos[:4]:  # First 4 unique courses
-            curso_examples.append(f"*\"{curso['nombre']}\"*")
+            curso_examples.append(f"{curso['nombre']}")
 
     evento_examples = []
     if eventos:
         unique_eventos = list(
             {evento['nombre']: evento for evento in eventos if evento['nombre']}.values())
         for evento in unique_eventos[:5]:  # First 5 unique events
-            evento_examples.append(f"*{evento['nombre']}*")
+            evento_examples.append(f"{evento['nombre']}")
 
     diseno_examples = []
     if disenos:
         unique_disenos = list(
             {diseno['nombre']: diseno for diseno in disenos if diseno['nombre']}.values())
         for diseno in unique_disenos[:4]:  # First 4 unique designs
-            diseno_examples.append(f"*{diseno['nombre']}*")
+            diseno_examples.append(f"{diseno['nombre']}")
+
+    # Get examples for mobility experiences
+    movilidad_examples = []
+    if movilidades:
+        unique_movilidades = list(
+            {mov['descripcion']: mov for mov in movilidades if mov['descripcion']}.values())
+        # First 3 unique mobility experiences
+        for mov in unique_movilidades[:3]:
+            movilidad_examples.append(f"{mov['descripcion']}")
+
+    # Get examples for recognitions
+    reconocimiento_examples = []
+    if reconocimientos:
+        unique_reconocimientos = list(
+            {rec['nombre']: rec for rec in reconocimientos if rec['nombre']}.values())
+        for rec in unique_reconocimientos[:3]:  # First 3 unique recognitions
+            reconocimiento_examples.append(f"{rec['nombre']}")
+
+    # Get examples for certifications
+    certificacion_examples = []
+    if certificaciones:
+        unique_certificaciones = list(
+            {cert['nombre']: cert for cert in certificaciones if cert['nombre']}.values())
+        # First 4 unique certifications
+        for cert in unique_certificaciones[:4]:
+            certificacion_examples.append(f"{cert['nombre']}")
+
+    # Get examples for other activities
+    otras_examples = []
+    if otras_actividades:
+        unique_otras = list(
+            {act['titulo']: act for act in otras_actividades if act['titulo']}.values())
+        for act in unique_otras[:3]:  # First 3 unique other activities
+            otras_examples.append(f"{act['titulo']}")
 
     # Build narrative report
     report_lines = [
         f"# {title}",
         "",
-        f"**Período:** Año {period_start.year}" if period_start.year == period_end.year else f"**Período:** {period_start.strftime('%B %Y')} - {period_end.strftime('%B %Y')}",
-        f"**Fecha de generación:** {datetime.now().strftime('%d de %B de %Y')}",
+        f"**Período:** Año {period_start.year}" if period_start.year == period_end.year else f"**Período:** {format_date_spanish(period_start, 'month_year')} - {format_date_spanish(period_end, 'month_year')}",
+        f"**Fecha de generación:** {format_date_spanish(datetime.now())}",
         "",
         "## Resumen de Actividades Académicas",
         "",
@@ -840,19 +1283,45 @@ def generate_annual_narrative_report(title, period_start, period_end, approved_f
     # Mobility experiences section
     if total_movilidades > 0:
         movilidad_text = f"{total_movilidades} experiencias de movilidad académica realizadas"
+        if movilidad_examples:
+            ejemplos = ", ".join(movilidad_examples[:3])
+            if len(movilidad_examples) > 3:
+                ejemplos += f" y otros {len(movilidad_examples) - 3} más"
+            movilidad_text += f", tales como {ejemplos}"
         report_lines.append(f"> {movilidad_text}.")
         report_lines.append("")
 
     # Recognitions section
     if total_reconocimientos > 0:
         reconocimiento_text = f"{total_reconocimientos} reconocimientos y distinciones obtenidos"
+        if reconocimiento_examples:
+            ejemplos = ", ".join(reconocimiento_examples[:3])
+            if len(reconocimiento_examples) > 3:
+                ejemplos += f" y otros {len(reconocimiento_examples) - 3} más"
+            reconocimiento_text += f", entre ellos {ejemplos}"
         report_lines.append(f"> {reconocimiento_text}.")
         report_lines.append("")
 
     # Certifications section
     if total_certificaciones > 0:
         certificacion_text = f"{total_certificaciones} certificaciones profesionales adquiridas"
+        if certificacion_examples:
+            ejemplos = ", ".join(certificacion_examples[:4])
+            if len(certificacion_examples) > 4:
+                ejemplos += f" y otros {len(certificacion_examples) - 4} más"
+            certificacion_text += f", como {ejemplos}"
         report_lines.append(f"> {certificacion_text}.")
+        report_lines.append("")
+
+    # Other activities section
+    if total_otras_actividades > 0:
+        otras_text = f"{total_otras_actividades} otras actividades académicas desarrolladas"
+        if otras_examples:
+            ejemplos = ", ".join(otras_examples[:3])
+            if len(otras_examples) > 3:
+                ejemplos += f" y otros {len(otras_examples) - 3} más"
+            otras_text += f", incluyendo {ejemplos}"
+        report_lines.append(f"> {otras_text}.")
         report_lines.append("")
 
     # Summary statistics
@@ -867,17 +1336,15 @@ def generate_annual_narrative_report(title, period_start, period_end, approved_f
         f"- **Experiencias de movilidad:** {total_movilidades}",
         f"- **Reconocimientos:** {total_reconocimientos}",
         f"- **Certificaciones:** {total_certificaciones}",
+        f"- **Otras actividades académicas:** {total_otras_actividades}",
         "",
-        "---",
-        "",
-        f"*Reporte generado automáticamente por el Sistema de Reportes Docentes*",
-        f"*Fecha: {datetime.now().strftime('%d de %B de %Y a las %H:%M')}*"
+        "---"
     ])
 
     return "\n".join(report_lines)
 
 
-def generate_quarterly_narrative_report(title, period_start, period_end, approved_forms, publicaciones, cursos, eventos, disenos, movilidades, reconocimientos, certificaciones):
+def generate_quarterly_narrative_report(title, period_start, period_end, approved_forms, publicaciones, cursos, eventos, disenos, movilidades, reconocimientos, certificaciones, otras_actividades):
     """Generate quarterly narrative report with hard data and brief examples"""
 
     # Count totals
@@ -888,6 +1355,7 @@ def generate_quarterly_narrative_report(title, period_start, period_end, approve
     total_movilidades = len(movilidades)
     total_reconocimientos = len(reconocimientos)
     total_certificaciones = len(certificaciones)
+    total_otras_actividades = len(otras_actividades)
     total_docentes = len(approved_forms)
 
     # Get brief examples
@@ -910,9 +1378,9 @@ def generate_quarterly_narrative_report(title, period_start, period_end, approve
         f"# {title}",
         "",
         f"**Período:** {quarter_name} {period_start.year}",
-        f"**Fecha de generación:** {datetime.now().strftime('%d de %B de %Y')}",
+        f"**Fecha de generación:** {format_date_spanish(datetime.now())}",
         "",
-        f"**{quarter_name} {period_start.year} ({period_start.strftime('%B').lower()}-{period_end.strftime('%B').lower()}):**",
+        f"**{quarter_name} {period_start.year}:**",
         ""
     ]
 
@@ -920,8 +1388,8 @@ def generate_quarterly_narrative_report(title, period_start, period_end, approve
     if total_publicaciones > 0:
         pub_text = f"- {total_publicaciones} artículos publicados en revistas indexadas"
         if pub_examples:
-            ejemplos = ", ".join([f"*{pub}*" for pub in pub_examples[:2]])
-            pub_text += f" (ejemplo: {ejemplos})"
+            ejemplos = ", ".join([f"{pub}" for pub in pub_examples[:2]])
+            pub_text += f" ({ejemplos})"
         report_lines.append(f"> {pub_text}.")
 
     # Training
@@ -929,8 +1397,8 @@ def generate_quarterly_narrative_report(title, period_start, period_end, approve
         curso_text = f"- {total_docentes} docentes capacitados en cursos"
         if curso_examples:
             ejemplos = ", ".join(
-                [f"*{curso}*" for curso in curso_examples[:2]])
-            curso_text += f" (ejemplo: {ejemplos})"
+                [f"{curso}" for curso in curso_examples[:2]])
+            curso_text += f" ({ejemplos})"
         report_lines.append(f"> {curso_text}.")
 
     # Curriculum design
@@ -938,8 +1406,8 @@ def generate_quarterly_narrative_report(title, period_start, period_end, approve
         diseno_text = f"- {total_disenos} diseños curriculares liberados"
         if diseno_examples:
             ejemplos = ", ".join(
-                [f"*{diseno}*" for diseno in diseno_examples[:3]])
-            diseno_text += f" (ejemplo: {ejemplos})"
+                [f"{diseno}" for diseno in diseno_examples[:3]])
+            diseno_text += f" ({ejemplos})"
         report_lines.append(f"> {diseno_text}.")
 
     # Events
@@ -947,29 +1415,66 @@ def generate_quarterly_narrative_report(title, period_start, period_end, approve
         evento_text = f"- {total_eventos} eventos académicos organizados"
         if evento_examples:
             ejemplos = ", ".join(
-                [f"*{evento}*" for evento in evento_examples[:3]])
+                [f"{evento}" for evento in evento_examples[:3]])
             evento_text += f" ({ejemplos})"
         report_lines.append(f"> {evento_text}.")
 
+    # Mobility experiences
+    if total_movilidades > 0:
+        movilidad_examples = list({mov['descripcion']
+                                   for mov in movilidades if mov['descripcion']})[:3]
+        movilidad_text = f"- {total_movilidades} experiencias de movilidad académica realizadas"
+        if movilidad_examples:
+            ejemplos = ", ".join(movilidad_examples)
+            movilidad_text += f" ({ejemplos})"
+        report_lines.append(f"> {movilidad_text}.")
+
+    # Recognitions
+    if total_reconocimientos > 0:
+        reconocimiento_examples = list({rec['nombre']
+                                        for rec in reconocimientos if rec['nombre']})[:3]
+        reconocimiento_text = f"- {total_reconocimientos} reconocimientos y distinciones obtenidos"
+        if reconocimiento_examples:
+            ejemplos = ", ".join(reconocimiento_examples)
+            reconocimiento_text += f" ({ejemplos})"
+        report_lines.append(f"> {reconocimiento_text}.")
+
+    # Certifications
+    if total_certificaciones > 0:
+        certificacion_examples = list({cert['nombre']
+                                       for cert in certificaciones if cert['nombre']})[:3]
+        certificacion_text = f"- {total_certificaciones} certificaciones profesionales adquiridas"
+        if certificacion_examples:
+            ejemplos = ", ".join(certificacion_examples)
+            certificacion_text += f" ({ejemplos})"
+        report_lines.append(f"> {certificacion_text}.")
+
+    # Other activities
+    if total_otras_actividades > 0:
+        otras_examples = list({act['titulo']
+                               for act in otras_actividades if act['titulo']})[:3]
+        otras_text = f"- {total_otras_actividades} otras actividades académicas desarrolladas"
+        if otras_examples:
+            ejemplos = ", ".join(otras_examples)
+            otras_text += f" ({ejemplos})"
+        report_lines.append(f"> {otras_text}.")
+
     report_lines.extend([
         "",
-        "---",
-        "",
-        f"*Reporte trimestral generado automáticamente*",
-        f"*{datetime.now().strftime('%d de %B de %Y')}*"
+        "---"
     ])
 
     return "\n".join(report_lines)
 
 
-def generate_data_table_report(title, period_start, period_end, approved_forms, publicaciones, cursos, eventos, disenos, movilidades, reconocimientos, certificaciones):
+def generate_data_table_report(title, period_start, period_end, approved_forms, publicaciones, cursos, eventos, disenos, movilidades, reconocimientos, certificaciones, otras_actividades):
     """Generate data table report with structured information"""
 
     report_lines = [
         f"# {title}",
         "",
-        f"**Período:** Año {period_start.year}" if period_start.year == period_end.year else f"**Período:** {period_start.strftime('%Y-%m-%d')} - {period_end.strftime('%Y-%m-%d')}",
-        f"**Fecha de generación:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"**Período:** Año {period_start.year}" if period_start.year == period_end.year else f"**Período:** {format_date_spanish(period_start)} - {format_date_spanish(period_end)}",
+        f"**Fecha de generación:** {format_date_spanish(datetime.now(), 'full_with_time')}",
         "",
         "## Resumen de Datos",
         "",
@@ -983,6 +1488,7 @@ def generate_data_table_report(title, period_start, period_end, approved_forms, 
         f"| Experiencias de movilidad | {len(movilidades)} |",
         f"| Reconocimientos | {len(reconocimientos)} |",
         f"| Certificaciones | {len(certificaciones)} |",
+        f"| Otras actividades académicas | {len(otras_actividades)} |",
         "",
         "## Detalle de Publicaciones",
         ""
@@ -1032,10 +1538,7 @@ def generate_data_table_report(title, period_start, period_end, approved_forms, 
 
     report_lines.extend([
         "",
-        "---",
-        "",
-        f"*Reporte de datos generado automáticamente*",
-        f"*{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*"
+        "---"
     ])
 
     return "\n".join(report_lines)
@@ -1052,6 +1555,7 @@ def calculate_activity_summary(forms):
     total_movilidades = 0
     total_reconocimientos = 0
     total_certificaciones = 0
+    total_otras_actividades = 0
 
     # Use a single database connection for efficiency
     db = SessionLocal()
@@ -1078,6 +1582,8 @@ def calculate_activity_summary(forms):
                     fresh_form.reconocimientos) if fresh_form.reconocimientos else 0
                 total_certificaciones += len(
                     fresh_form.certificaciones) if fresh_form.certificaciones else 0
+                total_otras_actividades += len(
+                    fresh_form.otras_actividades) if fresh_form.otras_actividades else 0
     finally:
         db.close()
 
@@ -1088,7 +1594,8 @@ def calculate_activity_summary(forms):
         'disenos': total_disenos,
         'movilidades': total_movilidades,
         'reconocimientos': total_reconocimientos,
-        'certificaciones': total_certificaciones
+        'certificaciones': total_certificaciones,
+        'otras_actividades': total_otras_actividades
     }
 
 
@@ -1214,7 +1721,7 @@ def export_report_basic(forms, report_type, period_start, period_end, export_for
 
             # Headers
             headers = ['ID', 'Docente', 'Estado', 'Fecha', 'Cursos', 'Publicaciones',
-                       'Eventos', 'Diseños', 'Movilidades', 'Reconocimientos', 'Certificaciones']
+                       'Eventos', 'Diseños', 'Movilidades', 'Reconocimientos', 'Certificaciones', 'Otras Actividades']
             for col, header in enumerate(headers, 1):
                 cell = ws2.cell(row=1, column=col, value=header)
                 cell.font = Font(bold=True, color='ffffff')
@@ -1249,6 +1756,8 @@ def export_report_basic(forms, report_type, period_start, period_end, export_for
                             fresh_form.reconocimientos) if fresh_form.reconocimientos else 0)
                         ws2.cell(row=row, column=11, value=len(
                             fresh_form.certificaciones) if fresh_form.certificaciones else 0)
+                        ws2.cell(row=row, column=12, value=len(
+                            fresh_form.otras_actividades) if fresh_form.otras_actividades else 0)
             finally:
                 db.close()
 
@@ -1276,112 +1785,105 @@ def export_report_basic(forms, report_type, period_start, period_end, export_for
             return content.encode('utf-8')
 
     def generate_powerpoint_content(forms, title, report_type, period_start, period_end):
-        """Generate PowerPoint content with same design as Markdown report"""
+        """Generate PowerPoint content using the template from assets folder"""
+        print("="*50)
+        print(f"POWERPOINT FUNCTION CALLED!")
+        print(f"Report type: {report_type}")
+        print(f"Period: {period_start} to {period_end}")
+        print("="*50)
         try:
             from pptx import Presentation
             from pptx.util import Inches, Pt
             from pptx.dml.color import RGBColor
             from pptx.enum.text import PP_ALIGN
             from io import BytesIO
+            import os
 
+            # CREATE NEW PRESENTATION instead of using template
             prs = Presentation()
+            print("CREATING NEW PRESENTATION FROM SCRATCH")
 
-            # Generate the same content as Markdown report
+            # Generate dynamic title based on report type
+            if report_type == "quarterly":
+                quarter = ((period_start.month - 1) // 3) + 1
+                presentation_title = f"Informe de Actividades Trimestral Q{quarter} {period_start.year}"
+            elif report_type == "annual":
+                presentation_title = f"Informe de Actividades {period_start.year}"
+            else:
+                presentation_title = f"Informe de Actividades {period_start.year}"
+
+            print(f"NEW PRESENTATION TITLE: {presentation_title}")
+
+            # Add title slide
+            title_slide_layout = prs.slide_layouts[0]
+            slide1 = prs.slides.add_slide(title_slide_layout)
+            slide1.shapes.title.text = presentation_title
+            slide1.placeholders[1].text = "Dirección Académica de Ingeniería y Tecnología"
+
+            # Calculate activity summary for the report
+            approved_forms = [f for f in forms if f.estado.value == 'APROBADO']
+            activity_summary = calculate_activity_summary(approved_forms)
+
+            # Generate report content for detailed information
             report_content = generate_simple_report(
                 forms, title, report_type, period_start, period_end)
 
-            # Title slide
-            slide_layout = prs.slide_layouts[0]
-            slide = prs.slides.add_slide(slide_layout)
-            title_placeholder = slide.shapes.title
-            subtitle_placeholder = slide.placeholders[1]
+            # Add content slide
+            content_slide_layout = prs.slide_layouts[1]  # Content layout
+            slide2 = prs.slides.add_slide(content_slide_layout)
+            slide2.shapes.title.text = f"Actividades realizadas durante el período {period_start.year}"
 
-            title_placeholder.text = title
-            subtitle_placeholder.text = f"Período: Año {period_start.year}" if period_start.year == period_end.year else f"Período: {period_start.strftime('%B %Y')} - {period_end.strftime('%B %Y')}"
-
-            # Parse report content and create slides
+            # Extract activities from report content
             lines = report_content.split('\n')
-            current_slide = None
-            current_content = []
+            activities_text = []
 
             for line in lines:
                 line = line.strip()
-                if line.startswith('## ') and not line.startswith('## Estadísticas'):
-                    # New section - create new slide
-                    if current_slide and current_content:
-                        # Add content to previous slide
-                        if len(current_slide.placeholders) > 1:
-                            content_placeholder = current_slide.placeholders[1]
-                            content_placeholder.text = '\n'.join(
-                                current_content)
+                if line.startswith('> '):
+                    # This is an activity line from our report
+                    activity_line = line[2:]  # Remove "> "
+                    # Clean text - remove asterisks and quotes
+                    import re
+                    activity_line = re.sub(
+                        r'\*"([^"]*?)"\*', r'\1', activity_line)
+                    activity_line = re.sub(
+                        r'\*([^*]*?)\*', r'\1', activity_line)
+                    activity_line = re.sub(r'"([^"]*?)"', r'\1', activity_line)
+                    activity_line = activity_line.replace(
+                        '*', '').replace('"', '')
+                    activity_line = ' '.join(activity_line.split())
 
-                    # Create new slide
-                    slide_layout = prs.slide_layouts[1]
-                    current_slide = prs.slides.add_slide(slide_layout)
-                    title_placeholder = current_slide.shapes.title
-                    title_placeholder.text = line[3:]  # Remove "## "
-                    current_content = []
+                    if activity_line.strip():
+                        activities_text.append(activity_line)
 
-                elif line.startswith('> '):
-                    # Activity content
-                    current_content.append(f"* {line[2:]}")
+            # Add activities to content slide
+            if slide2.placeholders[1].has_text_frame:
+                text_frame = slide2.placeholders[1].text_frame
+                text_frame.clear()
 
-                elif line.startswith('## Estadísticas'):
-                    # Statistics slide
-                    if current_slide and current_content:
-                        if len(current_slide.placeholders) > 1:
-                            content_placeholder = current_slide.placeholders[1]
-                            content_placeholder.text = '\n'.join(
-                                current_content)
+                for activity in activities_text:
+                    p = text_frame.add_paragraph()
+                    p.text = activity  # No bullet, just text
+                    p.level = 0
 
-                    # Create statistics slide
-                    slide_layout = prs.slide_layouts[1]
-                    stats_slide = prs.slides.add_slide(slide_layout)
-                    title_placeholder = stats_slide.shapes.title
-                    title_placeholder.text = "Estadísticas Generales"
-
-                    # Collect statistics
-                    stats_content = []
-                    continue
-
-                elif line.startswith('- **') and 'current_slide' in locals():
-                    # Statistics line
-                    stats_content.append(line[2:])  # Remove "- "
-
-            # Add final content
-            if current_slide and current_content:
-                if len(current_slide.placeholders) > 1:
-                    content_placeholder = current_slide.placeholders[1]
-                    content_placeholder.text = '\n'.join(current_content)
-
-            # Add statistics to the last slide if exists
-            if 'stats_slide' in locals() and 'stats_content' in locals():
-                if len(stats_slide.placeholders) > 1:
-                    content_placeholder = stats_slide.placeholders[1]
-                    content_placeholder.text = '\n'.join(stats_content)
-
-            # Style all slides
-            for slide in prs.slides:
-                if slide.shapes.title:
-                    title_shape = slide.shapes.title
-                    title_shape.text_frame.paragraphs[0].font.color.rgb = RGBColor(
-                        31, 119, 180)  # Blue
-                    title_shape.text_frame.paragraphs[0].font.size = Pt(28)
-
-                # Style content if exists
-                for shape in slide.shapes:
-                    if hasattr(shape, 'text_frame') and shape != slide.shapes.title:
-                        for paragraph in shape.text_frame.paragraphs:
-                            paragraph.font.size = Pt(18)
-                            paragraph.space_after = Pt(12)
+            print(
+                f"POWERPOINT CREATED SUCCESSFULLY with {len(prs.slides)} slides")
 
             buffer = BytesIO()
             prs.save(buffer)
             buffer.seek(0)
             return buffer.getvalue()
+
         except ImportError:
+            # Fallback if python-pptx is not available
             content = generate_simple_report(
                 forms, title, report_type, period_start, period_end)
+            return content.encode('utf-8')
+        except Exception as e:
+            # Fallback for any other errors
+            content = f"{title}\n\nError generando PowerPoint: {str(e)}\n\n"
+            content += generate_simple_report(forms, title,
+                                              report_type, period_start, period_end)
             return content.encode('utf-8')
 
     try:
@@ -1544,11 +2046,12 @@ def generate_simple_report_display(forms, report_type, period_start, period_end,
 
             # Show generation details
             with st.expander("ℹ️ Detalles de Generación"):
-                st.write(f"**Tipo:** {report_type}")
+                tipo_texto = "Anual" if report_type == "annual" else "Trimestral" if report_type == "quarterly" else "Personalizado"
+                st.write(f"**Tipo:** {tipo_texto}")
                 st.write(f"**Período:** {period_start} - {period_end}")
                 st.write(f"**Formularios procesados:** {len(forms)}")
                 st.write(
-                    f"**Fecha de generación:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                    f"**Fecha de generación:** {format_date_spanish(datetime.now(), 'full_with_time')}")
 
     except Exception as e:
         st.error(f"❌ Error al generar reporte: {str(e)}")
@@ -1572,7 +2075,7 @@ def generate_and_display_report(report_generator, history_manager, forms,
                     quarter = ((period_start.month - 1) // 3) + 1
                     title = f"Resumen Trimestral Q{quarter} {period_start.year}"
                 else:
-                    title = f"Reporte de Datos {period_start.strftime('%B %Y')}"
+                    title = f"Reporte de Datos {format_date_spanish(period_start, 'month_year')}"
 
             # Generate simple report content
             report_content = generate_simple_report(
@@ -1620,12 +2123,13 @@ def generate_and_display_report(report_generator, history_manager, forms,
             # Show generation details
             with st.expander("ℹ️ Detalles de Generación"):
                 st.write(f"**ID del reporte:** {report_id}")
-                st.write(f"**Tipo:** {report_type}")
+                tipo_texto = "Anual" if report_type == "annual" else "Trimestral" if report_type == "quarterly" else "Personalizado"
+                st.write(f"**Tipo:** {tipo_texto}")
                 st.write(f"**Período:** {period_start} - {period_end}")
                 st.write(f"**Formularios procesados:** {len(forms)}")
                 st.write(f"**Tono:** {report_tone}")
                 st.write(
-                    f"**Fecha de generación:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                    f"**Fecha de generación:** {format_date_spanish(datetime.now(), 'full_with_time')}")
 
     except Exception as e:
         st.error(f"❌ Error al generar reporte: {str(e)}")
@@ -1650,12 +2154,11 @@ def show_report_history(history_manager):
     with col1:
         type_filter = st.selectbox(
             "Filtrar por tipo:",
-            ["Todos", "annual", "quarterly", "data_table"],
+            ["Todos", "annual", "quarterly"],
             format_func=lambda x: {
                 "Todos": "Todos los tipos",
                 "annual": "Reportes Anuales",
-                "quarterly": "Reportes Trimestrales",
-                "data_table": "Reportes de Datos"
+                "quarterly": "Reportes Trimestrales"
             }.get(x, x)
         )
 
@@ -1679,7 +2182,9 @@ def show_report_history(history_manager):
             col1, col2 = st.columns([3, 1])
 
             with col1:
-                st.write(f"**Tipo:** {report['report_type']}")
+                tipo_texto = "Anual" if report['report_type'] == "annual" else "Trimestral" if report[
+                    'report_type'] == "quarterly" else "Personalizado"
+                st.write(f"**Tipo:** {tipo_texto}")
                 st.write(
                     f"**Período:** {report['period_start'][:10]} - {report['period_end'][:10]}")
                 st.write(f"**Resumen:** {report['summary']}")
@@ -1798,7 +2303,7 @@ def export_multiformat_report(report_generator, forms, report_type,
                     quarter = ((period_start.month - 1) // 3) + 1
                     title = f"Resumen Trimestral Q{quarter} {period_start.year}"
                 else:
-                    title = f"Reporte de Datos {period_start.strftime('%B %Y')}"
+                    title = f"Reporte de Datos {format_date_spanish(period_start, 'month_year')}"
 
             # Export report
             if export_format == 'pdf':
@@ -1916,7 +2421,7 @@ def generate_pdf_report(forms, title, report_type, period_start, period_end):
         story.append(Spacer(1, 12))
 
         # Period info
-        period_text = f"Período: Año {period_start.year}" if period_start.year == period_end.year else f"Período: {period_start.strftime('%B %Y')} - {period_end.strftime('%B %Y')}"
+        period_text = f"Período: Año {period_start.year}" if period_start.year == period_end.year else f"Período: {format_date_spanish(period_start, 'month_year')} - {format_date_spanish(period_end, 'month_year')}"
         story.append(Paragraph(period_text, styles['Normal']))
         story.append(Spacer(1, 12))
 
@@ -1968,13 +2473,13 @@ def generate_excel_report(forms, title, report_type, period_start, period_end):
         ws['A1'].alignment = Alignment(horizontal='center')
         ws.merge_cells('A1:H1')
 
-        ws['A2'] = f"Período: Año {period_start.year}" if period_start.year == period_end.year else f"Período: {period_start.strftime('%B %Y')} - {period_end.strftime('%B %Y')}"
+        ws['A2'] = f"Período: Año {period_start.year}" if period_start.year == period_end.year else f"Período: {format_date_spanish(period_start, 'month_year')} - {format_date_spanish(period_end, 'month_year')}"
         ws['A2'].font = Font(size=12)
         ws.merge_cells('A2:H2')
 
         # Data headers
         headers = ['ID', 'Docente', 'Estado', 'Fecha', 'Cursos',
-                   'Publicaciones', 'Eventos', 'Certificaciones']
+                   'Publicaciones', 'Eventos', 'Certificaciones', 'Otras Actividades']
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=4, column=col, value=header)
             cell.font = Font(bold=True)
@@ -2004,6 +2509,8 @@ def generate_excel_report(forms, title, report_type, period_start, period_end):
                         fresh_form.eventos_academicos) if fresh_form.eventos_academicos else 0)
                     ws.cell(row=row, column=8, value=len(
                         fresh_form.certificaciones) if fresh_form.certificaciones else 0)
+                    ws.cell(row=row, column=9, value=len(
+                        fresh_form.otras_actividades) if fresh_form.otras_actividades else 0)
         finally:
             db.close()
 
@@ -2015,7 +2522,7 @@ def generate_excel_report(forms, title, report_type, period_start, period_end):
 
     except ImportError:
         # Fallback to CSV-like content
-        content = "ID,Docente,Estado,Fecha,Cursos,Publicaciones,Eventos,Certificaciones\n"
+        content = "ID,Docente,Estado,Fecha,Cursos,Publicaciones,Eventos,Certificaciones,Otras Actividades\n"
         approved_forms = [f for f in forms if f.estado.value == 'APROBADO']
         for form in approved_forms:
             content += f"{form.id},{form.nombre_completo},{form.estado.value},{form.fecha_envio.strftime('%Y-%m-%d') if form.fecha_envio else ''},0,0,0,0\n"
@@ -2039,7 +2546,7 @@ def generate_powerpoint_report(forms, title, report_type, period_start, period_e
         subtitle_placeholder = slide.placeholders[1]
 
         title_placeholder.text = title
-        subtitle_placeholder.text = f"Período: Año {period_start.year}" if period_start.year == period_end.year else f"Período: {period_start.strftime('%B %Y')} - {period_end.strftime('%B %Y')}"
+        subtitle_placeholder.text = f"Período: Año {period_start.year}" if period_start.year == period_end.year else f"Período: {format_date_spanish(period_start, 'month_year')} - {format_date_spanish(period_end, 'month_year')}"
 
         # Summary slide
         slide_layout = prs.slide_layouts[1]  # Title and content
@@ -2070,7 +2577,25 @@ Certificaciones: {summary['certificaciones']}"""
 
     except ImportError:
         # Fallback to text content
-        content = f"{title}\n\nPeríodo: Año {period_start.year}\n\n" if period_start.year == period_end.year else f"{title}\n\nPeríodo: {period_start.strftime('%B %Y')} - {period_end.strftime('%B %Y')}\n\n"
+        content = f"{title}\n\nPeríodo: Año {period_start.year}\n\n" if period_start.year == period_end.year else f"{title}\n\nPeríodo: {format_date_spanish(period_start, 'month_year')} - {format_date_spanish(period_end, 'month_year')}\n\n"
         content += generate_simple_report(forms, title,
                                           report_type, period_start, period_end)
         return content.encode('utf-8')
+
+# Funciones auxiliares adicionales que podrían estar faltando
+
+
+def generate_report_interface(all_forms):
+    """Generate the main report interface - placeholder function"""
+    st.info("Interfaz de generación de reportes cargada correctamente.")
+    st.write(f"Total de formularios disponibles: {len(all_forms)}")
+
+
+def show_interactive_filters():
+    """Show interactive filters - placeholder function"""
+    st.info("Filtros interactivos no disponibles en esta versión.")
+
+
+def show_report_statistics():
+    """Show report statistics - placeholder function"""
+    st.info("Estadísticas de reportes no disponibles en esta versión.")

@@ -19,13 +19,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-# Page configuration
-st.set_page_config(
-    page_title="Formulario Docente - Sistema de Reportes",
-    page_icon="📝",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+# Page configuration is handled by the main app
 
 # Ocultar páginas específicas de la barra lateral solo en el formulario público
 
@@ -34,8 +28,6 @@ if hasattr(st, 'source_util'):
     try:
         # Obtener las páginas registradas
         pages_to_hide = [
-            'advanced_analytics',
-            'backup_management',
             'data_export',
             'form_review',
             'report_generation'
@@ -109,6 +101,8 @@ def initialize_session_state():
         st.session_state.reconocimientos = []
     if 'certificaciones' not in st.session_state:
         st.session_state.certificaciones = []
+    if 'otras_actividades' not in st.session_state:
+        st.session_state.otras_actividades = []
     if 'show_info_box' not in st.session_state:
         st.session_state.show_info_box = True
 
@@ -558,10 +552,7 @@ def show_certificaciones():
         for i, cert in enumerate(st.session_state.certificaciones):
             col1, col2 = st.columns([4, 1])
             with col1:
-                vigencia = "✅ Vigente" if cert['vigente'] else "❌ Vencida"
-                vencimiento = f" (Vence: {cert['fecha_vencimiento']})" if cert['fecha_vencimiento'] else ""
-                st.write(
-                    f"**{cert['nombre']}** - Obtenida: {cert['fecha_obtencion']} {vigencia}{vencimiento}")
+                st.write(f"**{cert['nombre']}** - Obtenida: {cert['fecha_obtencion']}")
             with col2:
                 if st.button("🗑️", key=f"del_cert_{i}", help="Eliminar certificación"):
                     st.session_state.certificaciones.pop(i)
@@ -570,27 +561,16 @@ def show_certificaciones():
 
     # Form to add new certification
     with st.expander("➕ Agregar Certificación", expanded=False):
-        col1, col2 = st.columns(2)
-
-        with col1:
-            nombre_certificacion = st.text_input(
-                "Nombre de la Certificación", key="nueva_cert_nombre")
-            fecha_obtencion = st.date_input(
-                "Fecha de Obtención", key="nueva_cert_obtencion")
-
-        with col2:
-            fecha_vencimiento = st.date_input(
-                "Fecha de Vencimiento", key="nueva_cert_vencimiento", value=None)
-            vigente = st.checkbox(
-                "Vigente", key="nueva_cert_vigente", value=True)
+        nombre_certificacion = st.text_input(
+            "Nombre de la Certificación", key="nueva_cert_nombre")
+        fecha_obtencion = st.date_input(
+            "Fecha de Obtención", key="nueva_cert_obtencion")
 
         if st.button("➕ Agregar Certificación"):
             if nombre_certificacion and fecha_obtencion:
                 nueva_certificacion = {
                     'nombre': nombre_certificacion,
-                    'fecha_obtencion': fecha_obtencion,
-                    'fecha_vencimiento': fecha_vencimiento,
-                    'vigente': vigente
+                    'fecha_obtencion': fecha_obtencion
                 }
                 st.session_state.certificaciones.append(nueva_certificacion)
                 st.success(
@@ -598,6 +578,57 @@ def show_certificaciones():
                 st.rerun()
             else:
                 st.error("❌ Por favor complete todos los campos obligatorios")
+
+
+def show_otras_actividades():
+    """Show other academic activities section (generic/flexible)"""
+    st.header("🎯 Otras Actividades Académicas")
+    st.info("📝 **Opcional:** Registre cualquier otra actividad académica que no encaje en las categorías anteriores.")
+
+    # Show existing activities
+    if st.session_state.otras_actividades:
+        st.write("**Otras Actividades Registradas:**")
+        for i, actividad in enumerate(st.session_state.otras_actividades):
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                st.write(f"**{actividad['titulo']}**")
+                if actividad.get('descripcion'):
+                    st.write(f"{actividad['descripcion']}")
+            with col2:
+                if st.button("🗑️", key=f"del_otra_{i}", help="Eliminar actividad"):
+                    st.session_state.otras_actividades.pop(i)
+                    st.rerun()
+        st.divider()
+
+    # Form to add new activity
+    with st.expander("➕ Agregar Otra Actividad", expanded=False):
+        titulo = st.text_input(
+            "Título/Nombre *", 
+            key="nueva_otra_titulo",
+            placeholder="Ej: Asesoría de tesis, Tutorías académicas, Solicitudes atendidas"
+        )
+        descripcion = st.text_area(
+            "Descripción", 
+            key="nueva_otra_descripcion",
+            placeholder="Descripción detallada de la actividad (opcional)",
+            help="Agregue cualquier información adicional sobre esta actividad"
+        )
+
+        if st.button("➕ Agregar Actividad"):
+            if titulo:
+                nueva_actividad = {
+                    'categoria': 'OTRA_ACTIVIDAD',  # Categoría genérica
+                    'titulo': titulo.strip(),
+                    'descripcion': descripcion.strip() if descripcion else None,
+                    'fecha': None,
+                    'cantidad': None,
+                    'observaciones': None
+                }
+                st.session_state.otras_actividades.append(nueva_actividad)
+                st.success(f"✅ Actividad agregada exitosamente")
+                st.rerun()
+            else:
+                st.error("❌ Por favor complete el título")
 
 
 def validate_form(nombre_completo, correo_institucional, año_academico, trimestre):
@@ -638,7 +669,8 @@ def validate_form(nombre_completo, correo_institucional, año_academico, trimest
                         len(st.session_state.disenos) +
                         len(st.session_state.movilidades) +
                         len(st.session_state.reconocimientos) +
-                        len(st.session_state.certificaciones))
+                        len(st.session_state.certificaciones) +
+                        len(st.session_state.otras_actividades))
 
     if total_activities == 0:
         errors.append(
@@ -662,7 +694,8 @@ def submit_form(nombre_completo, correo_institucional, año_academico, trimestre
             diseno_curricular=st.session_state.disenos,
             movilidad=st.session_state.movilidades,
             reconocimientos=st.session_state.reconocimientos,
-            certificaciones=st.session_state.certificaciones
+            certificaciones=st.session_state.certificaciones,
+            otras_actividades=st.session_state.otras_actividades
         )
 
         # Save to database
@@ -711,6 +744,7 @@ def clear_form():
     st.session_state.movilidades = []
     st.session_state.reconocimientos = []
     st.session_state.certificaciones = []
+    st.session_state.otras_actividades = []
 
 
 def load_correction_data(token: str):
@@ -737,6 +771,7 @@ def load_correction_data(token: str):
         st.session_state.movilidades = form_data.get('experiencias_movilidad', [])
         st.session_state.reconocimientos = form_data.get('reconocimientos', [])
         st.session_state.certificaciones = form_data.get('certificaciones', [])
+        st.session_state.otras_actividades = form_data.get('otras_actividades', [])
         
         # Guardar información de la versión original
         st.session_state.original_form_id = form_data.get('id')
@@ -789,6 +824,8 @@ def main():
     header_text = "🔄 Corrección de Formulario" if is_correction_mode else "📝 Formulario de Actividades Académicas"
     st.markdown(f'<h1 class="main-header">{header_text}</h1>', unsafe_allow_html=True)
     
+
+    
     # Mostrar información de corrección si aplica
     if is_correction_mode:
         estado_original = st.session_state.get('original_estado', 'DESCONOCIDO')
@@ -816,6 +853,7 @@ def main():
     show_movilidad()
     show_reconocimientos()
     show_certificaciones()
+    show_otras_actividades()
 
     # Submit Section
     st.header("📤 Envío del Formulario")
@@ -838,76 +876,39 @@ def main():
                     nombre_completo, correo_institucional, año_academico, trimestre)
 
                 if formulario_id:
-                    # Mensaje diferente para correcciones
+                    # Guardar el estado de éxito en session_state para que persista
                     if st.session_state.get('is_correction', False):
                         estado_original = st.session_state.get('original_estado', 'DESCONOCIDO')
-                        
-                        if estado_original == "APROBADO":
-                            st.success(f"""
-                            🔄 **¡Corrección de Formulario Aprobado Enviada!**
-                            
-                            **ID de Nueva Versión:** {formulario_id}  
-                            **Estado:** PENDIENTE (Requiere nueva aprobación)  
-                            **Fecha de Corrección:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-                            **Versión Anterior:** {st.session_state.get('original_version', 1)} (Estaba APROBADA)
-                            
-                            ⚠️ **Importante:** Su formulario anterior estaba aprobado, pero esta nueva versión 
-                            requerirá aprobación nuevamente. El área administrativa revisará los cambios.
-                            """)
-                        elif estado_original == "RECHAZADO":
-                            st.success(f"""
-                            🔄 **¡Corrección Enviada Exitosamente!**
-                            
-                            **ID de Nueva Versión:** {formulario_id}  
-                            **Estado:** PENDIENTE (En revisión)  
-                            **Fecha de Corrección:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-                            **Versión Anterior:** {st.session_state.get('original_version', 1)} (Estaba RECHAZADA)
-                            
-                            ✅ Su corrección ha sido recibida. El área administrativa revisará 
-                            que se hayan corregido los problemas identificados anteriormente.
-                            """)
-                        else:
-                            st.success(f"""
-                            🔄 **¡Corrección Enviada Exitosamente!**
-                            
-                            **ID de Nueva Versión:** {formulario_id}  
-                            **Estado:** PENDIENTE (En revisión)  
-                            **Fecha de Corrección:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-                            **Versión Anterior:** {st.session_state.get('original_version', 1)}
-                            
-                            Su corrección ha sido recibida y será revisada por el área administrativa. 
-                            Esta nueva versión reemplazará a la anterior una vez aprobada.
-                            """)
+                        st.session_state.form_submitted = True
+                        st.session_state.submission_type = 'correction'
+                        st.session_state.original_estado_msg = estado_original
                     else:
-                        st.success(f"""
-                        🎉 **¡Formulario Enviado Exitosamente!**
-                        
-                        **ID de Seguimiento:** {formulario_id}  
-                        **Estado:** PENDIENTE (En revisión)  
-                        **Fecha de Envío:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-                        
-                        Su formulario ha sido recibido y será revisado por el área administrativa. 
-                        Guarde su ID de seguimiento para futuras consultas.
-                        """)
+                        st.session_state.form_submitted = True
+                        st.session_state.submission_type = 'new'
 
-                    # Clear form after successful submission
-                    if st.button("🆕 Enviar Otro Formulario"):
-                        clear_form()
-                        st.rerun()
+                    # Clear form data but keep success message
+                    clear_form()
+                    st.rerun()
 
         if st.button("🗑️ Limpiar Formulario", help="Eliminar todos los datos ingresados"):
             clear_form()
             st.success("✅ Formulario limpiado exitosamente")
             st.rerun()
 
+        # Mostrar mensaje de éxito simple cerca de los botones
+        if st.session_state.get('form_submitted', False):
+            if st.session_state.get('submission_type') == 'correction':
+                st.success("🎉 ¡Corrección Enviada Exitosamente!")
+            elif st.session_state.get('submission_type') == 'new':
+                st.success("🎉 ¡Formulario Enviado Exitosamente!")
+            
+            # Limpiar el mensaje después de mostrarlo una vez
+            st.session_state.form_submitted = False
+            st.session_state.submission_type = None
+
     # Footer
     st.divider()
-    st.markdown("""
-    <div style="text-align: center; color: #666; font-size: 0.9rem;">
-        <p>Sistema de Reportes Docentes v1.0 | 
-        Para soporte técnico contacte al área de sistemas</p>
-    </div>
-    """, unsafe_allow_html=True)
+
 
 
 if __name__ == "__main__":

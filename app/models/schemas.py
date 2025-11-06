@@ -111,18 +111,31 @@ class Reconocimiento(ReconocimientoBase):
 class CertificacionBase(BaseModel):
     nombre: str
     fecha_obtencion: date
-    fecha_vencimiento: Optional[date] = None
-    
-    @validator('fecha_vencimiento')
-    def validate_fecha_vencimiento(cls, v, values):
-        if v and 'fecha_obtencion' in values and v <= values['fecha_obtencion']:
-            raise ValueError('La fecha de vencimiento debe ser posterior a la fecha de obtención')
-        return v
 
 class Certificacion(CertificacionBase):
     id: Optional[int] = None
     formulario_id: Optional[int] = None
-    vigente: bool = True
+    
+    class Config:
+        from_attributes = True
+
+class OtraActividadAcademicaBase(BaseModel):
+    categoria: str  # Ej: "ASESORIA Y TITULACION", "SOLICITUDES ATENDIDAS", etc.
+    titulo: str  # Título o nombre de la actividad
+    descripcion: Optional[str] = None  # Descripción detallada
+    fecha: Optional[date] = None  # Fecha opcional
+    cantidad: Optional[int] = None  # Para números (solicitudes atendidas, etc.)
+    observaciones: Optional[str] = None  # Campo adicional para notas
+    
+    @validator('cantidad')
+    def validate_cantidad(cls, v):
+        if v is not None and v < 0:
+            raise ValueError('La cantidad no puede ser negativa')
+        return v
+
+class OtraActividadAcademica(OtraActividadAcademicaBase):
+    id: Optional[int] = None
+    formulario_id: Optional[int] = None
     
     class Config:
         from_attributes = True
@@ -140,6 +153,7 @@ class FormDataBase(BaseModel):
     movilidad: List[ExperienciaMovilidadBase] = []
     reconocimientos: List[ReconocimientoBase] = []
     certificaciones: List[CertificacionBase] = []
+    otras_actividades: List[OtraActividadAcademicaBase] = []
     
     @validator('nombre_completo')
     def validate_nombre_completo(cls, v):
@@ -204,3 +218,4 @@ class MetricasResponse(BaseModel):
     total_movilidades: int
     total_reconocimientos: int
     total_certificaciones: int
+    total_otras_actividades: int
