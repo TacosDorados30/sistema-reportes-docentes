@@ -25,40 +25,33 @@
   - Implement automatic versioning for form resubmissions
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [x] 4. Develop FastAPI backend endpoints
+- [x] 4. Implement Streamlit-based backend with integrated authentication
+  - Create authentication system with session management in Streamlit
+  - Implement form submission handling with direct database integration
+  - Build admin functions for form approval/rejection within Streamlit pages
+  - Add CRUD operations for all data models with SQLAlchemy
+  - Integrate metrics calculation directly in Streamlit components
+  - _Requirements: 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 6.5_
 
-
-
-
-  - Create FastAPI application with CORS configuration
-  - Implement POST endpoint for form submission with validation
-  - Create admin authentication middleware
-  - Build endpoints for form review (list pending, approve, reject)
-  - Add endpoints for metrics calculation and data export
-  - _Requirements: 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5_
-
-- [ ]* 4.1 Write unit tests for API endpoints
-  - Test form submission endpoint with valid and invalid data
-  - Test admin endpoints with proper authentication
-  - Test data validation and error handling
+- [ ]* 4.1 Write unit tests for core functions
+  - Test form submission validation and database operations
+  - Test authentication and session management
+  - Test CRUD operations for all data models
   - _Requirements: 1.4, 2.3, 2.4_
 
 
-- [x] 5. Implement data processing engine
-
-
-
-
-  - Create DataProcessor class for data cleaning and normalization
-  - Implement duplicate detection algorithms using fuzzy matching
-  - Build MetricsCalculator for quarterly and annual statistics
-  - Add functions for date parsing and categorization
+- [x] 5. Implement metrics calculation and data processing
+  - Create MetricsCalculator class for real-time statistics calculation
+  - Implement data aggregation for dashboard visualizations
+  - Build quarterly and annual metrics with proper date filtering
+  - Add data validation and cleaning for all activity categories
+  - Implement caching system for improved performance
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
 
-- [ ]* 5.1 Write unit tests for data processing
-  - Test data cleaning functions with messy input data
-  - Test duplicate detection with similar records
-  - Test metrics calculations with sample datasets
+- [ ]* 5.1 Write unit tests for metrics calculation
+  - Test quarterly and annual metrics calculation accuracy
+  - Test data filtering and aggregation functions
+  - Test caching system performance and correctness
   - _Requirements: 3.1, 3.2, 3.3_
 
 - [x] 6. Build admin dashboard with Streamlit

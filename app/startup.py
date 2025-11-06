@@ -1,5 +1,5 @@
 """
-Application startup and initialization
+Application startup - Optimized version
 """
 
 import os
@@ -8,23 +8,16 @@ from datetime import datetime
 
 from app.config import settings
 from app.database.connection import init_database
-# from app.database.optimization import db_optimizer  # Removed for optimization
 from app.core.logging_middleware import app_logger
-# from app.core.health_check import health_checker  # Removed for optimization
-# from app.core.performance_monitor import performance_monitor  # Removed for optimization
 
 def setup_logging():
-    """Setup application logging"""
-    
-    # Create logs directory
+    """Setup minimal logging for performance"""
     os.makedirs(settings.logs_dir, exist_ok=True)
     
-    # Configure root logger
     logging.basicConfig(
-        level=getattr(logging, settings.log_level.upper()),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.WARNING,  # Only warnings and errors
+        format='%(asctime)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.StreamHandler(),
             logging.FileHandler(
                 os.path.join(settings.logs_dir, 'application.log'),
                 encoding='utf-8'
@@ -32,188 +25,64 @@ def setup_logging():
         ]
     )
     
-    # Set specific logger levels for better performance
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
-    logging.getLogger("sqlalchemy.dialects").setLevel(logging.WARNING)
-    logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
-    logging.getLogger("sqlalchemy.orm").setLevel(logging.WARNING)
-    
-    # Silenciar logs innecesarios para mejor rendimiento
-    # app_logger.log_operation("logging_configured", {"level": settings.log_level})
+    # Silence SQLAlchemy logs for performance
+    for logger_name in ["sqlalchemy.engine", "sqlalchemy.dialects", "sqlalchemy.pool", "sqlalchemy.orm"]:
+        logging.getLogger(logger_name).setLevel(logging.ERROR)
 
 def initialize_database():
-    """Initialize and optimize database"""
-    
+    """Initialize database silently"""
     try:
-        # app_logger.log_operation("database_initialization_started")  # Silenciado para rendimiento
-        
-        # Initialize database tables
         init_database()
-        
-        # Run optimization only if explicitly requested (disabled by default for faster startup)
-        # Database optimization disabled for performance
-        # app_logger.log_operation("database_optimization_skipped", {"reason": "disabled_for_performance"})  # Silenciado
-        
-        # app_logger.log_operation("database_initialization_completed")  # Silenciado
-        
     except Exception as e:
-        app_logger.log_operation(
-            "database_initialization_failed",
-            {"error": str(e)},
-            "ERROR"
-        )
+        app_logger.log_operation("database_init_failed", {"error": str(e)}, "ERROR")
         raise
 
 def create_required_directories():
-    """Create all required directories"""
+    """Create required directories silently"""
+    directories = [settings.data_dir, settings.logs_dir, settings.reports_dir, settings.upload_dir]
     
-    directories = [
-        settings.data_dir,
-        settings.logs_dir,
-        settings.reports_dir,
-        settings.upload_dir
-    ]
-    
-    created_dirs = []
     for directory in directories:
         try:
             os.makedirs(directory, exist_ok=True)
-            created_dirs.append(directory)
         except Exception as e:
-            app_logger.log_operation(
-                "directory_creation_failed",
-                {"directory": directory, "error": str(e)},
-                "ERROR"
-            )
-    
-    # app_logger.log_operation(  # Silenciado para terminal limpia
-    #     "directories_created",
-    #     {"directories": created_dirs}
-    # )
+            app_logger.log_operation("dir_creation_failed", {"dir": directory, "error": str(e)}, "ERROR")
 
 def validate_configuration():
-    """Validate application configuration"""
-    
+    """Quick configuration validation"""
     issues = []
     
-    # Check critical configuration
     if settings.is_production:
         if settings.secret_key == "dev-secret-key-change-in-production":
-            issues.append("Using default secret key in production")
-        
-        if settings.debug:
-            issues.append("Debug mode enabled in production")
-        
+            issues.append("Default secret key in production")
         if not settings.database_url or "sqlite:///" in settings.database_url:
-            issues.append("Using SQLite in production (consider PostgreSQL)")
-    
-    # Check database URL
-    if not settings.database_url:
-        issues.append("Database URL not configured")
-    
-    # Log configuration issues
-    if issues:
-        # app_logger.log_operation(  # Silenciado para terminal limpia
-        #     "configuration_issues_detected",
-        #     {"issues": issues},
-        #     "WARNING"
-        # )
-        pass
-    else:
-        # app_logger.log_operation("configuration_validated")  # Silenciado
-        pass
+            issues.append("SQLite in production")
     
     return issues
 
 def startup_application():
-    """Complete application startup sequence"""
-    
-    startup_start = datetime.utcnow()
-    
+    """Optimized startup sequence"""
     try:
-        app_logger.log_operation(
-            "application_startup_started",
-            {
-                "environment": settings.environment,
-                "version": settings.app_version,
-                "debug": settings.debug
-            }
-        )
-        
-        # 1. Setup logging
         setup_logging()
-        
-        # 2. Create directories
         create_required_directories()
-        
-        # 3. Validate configuration
         config_issues = validate_configuration()
-        
-        # 4. Initialize database
         initialize_database()
-        
-        # 5. Health checker disabled for optimization
-        health_status = "healthy"  # Simplified health status
-        
-        # 6. Performance monitoring disabled for optimization
-        # print("📊 Performance monitoring started (interval: 60s)")  # Silenciado
-        # app_logger.log_operation("performance_monitoring_started")  # Silenciado
-        
-        startup_duration = (datetime.utcnow() - startup_start).total_seconds()
-        
-        # app_logger.log_operation(  # Silenciado para terminal limpia
-        #     "application_startup_completed",
-        #     {
-        #         "duration_seconds": startup_duration,
-        #         "health_status": health_status,
-        #         "configuration_issues": len(config_issues)
-        #     }
-        # )
         
         return {
             "status": "success",
-            "duration": startup_duration,
-            "health_status": health_status,
             "configuration_issues": config_issues
         }
         
     except Exception as e:
-        startup_duration = (datetime.utcnow() - startup_start).total_seconds()
-        
-        app_logger.log_operation(
-            "application_startup_failed",
-            {
-                "duration_seconds": startup_duration,
-                "error": str(e)
-            },
-            "ERROR"
-        )
-        
+        app_logger.log_operation("startup_failed", {"error": str(e)}, "ERROR")
         raise
 
 def shutdown_application():
-    """Application shutdown sequence"""
-    
+    """Minimal shutdown sequence"""
     try:
-        app_logger.log_operation("application_shutdown_started")
-        
-        # Performance monitoring stop disabled for optimization
-        
-        # Perform any cleanup tasks here
-        # - Close database connections
-        # - Save any pending data
-        # - Clean up temporary files
-        
-        app_logger.log_operation("application_shutdown_completed")
-        
+        app_logger.log_operation("shutdown_completed")
     except Exception as e:
-        app_logger.log_operation(
-            "application_shutdown_failed",
-            {"error": str(e)},
-            "ERROR"
-        )
+        app_logger.log_operation("shutdown_failed", {"error": str(e)}, "ERROR")
 
 if __name__ == "__main__":
-    # Run startup when script is executed directly
     result = startup_application()
-    print(f"Application startup completed: {result}")
+    print(f"Startup completed: {result['status']}")

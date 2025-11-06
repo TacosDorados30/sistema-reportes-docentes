@@ -1,53 +1,40 @@
 
-from app.auth.streamlit_auth import auth
-from app.models.database import EstadoFormularioEnum
-from app.core.metrics_calculator import MetricsCalculator
-from app.core.data_processor import DataProcessor
-from app.database.crud import FormularioCRUD
-from app.database.connection import SessionLocal
 import streamlit as st
 import sys
 import os
-from datetime import datetime, date
 
-# Add the project root to the path
+# Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Lazy imports - only import when needed
-
-
+# Lazy imports for better performance
+@st.cache_resource
 def get_pandas():
     import pandas as pd
     return pd
 
-
+@st.cache_resource  
 def get_plotly():
     import plotly.express as px
     import plotly.graph_objects as go
     return px, go
 
-
-# Initialize application on first run
+# Initialize app once
 if 'app_initialized' not in st.session_state:
     try:
         from app.startup import startup_application
-        startup_result = startup_application()
+        startup_application()
         st.session_state.app_initialized = True
-        st.session_state.startup_result = startup_result
     except Exception as e:
-        st.error(f"Error initializing application: {e}")
+        st.error(f"Error: {e}")
         st.stop()
 
-
-# Page configuration
+# Page config
 st.set_page_config(
     page_title="Sistema de Reportes Docentes",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="collapsed"  # Start with sidebar collapsed for login
+    initial_sidebar_state="collapsed"
 )
-
-# Custom CSS will be loaded after authentication
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
