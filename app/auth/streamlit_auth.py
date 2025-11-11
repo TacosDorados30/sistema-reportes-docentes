@@ -77,7 +77,7 @@ class StreamlitAuth:
             # Create login form
             with st.form("login_form"):
                 username = st.text_input(
-                    "Usuario", placeholder="Ingrese su usuario")
+                    "Email", placeholder="Ingrese su correo electrónico")
                 password = st.text_input(
                     "Contraseña", type="password", placeholder="Ingrese su contraseña")
 
@@ -127,9 +127,9 @@ class StreamlitAuth:
                             )
                         except Exception as e:
                             print(f"Audit logging failed: {e}")
-                        st.error("❌ Usuario o contraseña incorrectos")
+                        st.error("❌ Email o contraseña incorrectos")
                 else:
-                    st.error("⚠️ Por favor, ingrese usuario y contraseña")
+                    st.error("⚠️ Por favor, ingrese email y contraseña")
 
             if forgot_button:
                 self._show_password_reset_info()
@@ -341,13 +341,18 @@ class StreamlitAuth:
                         st.error(
                             "La contraseña debe tener al menos 8 caracteres")
                     else:
-                        if self.auth_manager.change_password(current_user['username'], old_password, new_password):
-                            st.success("Contraseña cambiada exitosamente")
+                        # First verify current password using email authentication
+                        verify_session = self.auth_manager.authenticate(
+                            current_user['email'], old_password)
+                        if not verify_session:
+                            st.error("❌ La contraseña actual es incorrecta")
+                        elif self.auth_manager.change_password(current_user['username'], old_password, new_password):
+                            st.success("✅ Contraseña cambiada exitosamente")
                             # Force re-authentication
                             self.logout()
                         else:
                             st.error(
-                                "Error al cambiar contraseña. Verifique su contraseña actual.")
+                                "❌ La nueva contraseña no cumple con los requisitos de seguridad. Debe tener al menos 8 caracteres y contener al menos un carácter especial (!@#$%^&*()_+-=[]{}|;:,.<>?)")
 
         with tab2:
             with st.form("change_email_form"):
@@ -367,9 +372,9 @@ class StreamlitAuth:
                     elif "@" not in new_email or "." not in new_email:
                         st.error("Por favor, ingrese un email válido")
                     else:
-                        # Verify current password first
+                        # Verify current password first using current email
                         session_data = self.auth_manager.authenticate(
-                            current_user['username'], current_password)
+                            current_user['email'], current_password)
                         if session_data:
                             if self.auth_manager.update_user_info(current_user['username'], new_name, new_email):
                                 st.success(

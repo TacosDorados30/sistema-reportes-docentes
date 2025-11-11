@@ -39,31 +39,14 @@ if hasattr(st, 'source_util'):
     except:
         pass
 
-# Custom CSS - Ocultar completamente la barra lateral para optimizar recursos
+# Custom CSS - Ocultar sidebar
 st.markdown("""
 <style>
-    /* Ocultar completamente la barra lateral */
-    .css-1d391kg, .css-1lcbmhc, .css-1cypcdb, .css-17eq0hr, 
-    [data-testid="stSidebar"], .stSidebar, section[data-testid="stSidebar"] {
+    [data-testid="stSidebar"] {
         display: none !important;
-        visibility: hidden !important;
-        width: 0px !important;
-        min-width: 0px !important;
     }
-    
-    /* Ocultar botón de toggle de la barra lateral */
-    .css-1rs6os, .css-17ziqus, [data-testid="collapsedControl"],
-    button[kind="header"] {
+    [data-testid="collapsedControl"] {
         display: none !important;
-        visibility: hidden !important;
-    }
-    
-    /* Expandir contenido principal a pantalla completa */
-    .css-18e3th9, .css-1d391kg, .main, .block-container {
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-        margin-left: 0rem !important;
-        max-width: 100% !important;
     }
     
     /* Estilos del formulario */
@@ -83,6 +66,8 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+
 
 
 def initialize_session_state():
@@ -184,38 +169,35 @@ def show_personal_info():
         # El nombre completo es el seleccionado
         nombre_completo = selected_maestro
         
-        # Actualizar el correo en session_state cuando cambie la selección del maestro
-        if selected_maestro and selected_maestro in maestros_options:
-            # Solo actualizar si no estamos en modo corrección o si el correo actual está vacío
-            if not st.session_state.get('correo_institucional_correction') or not st.session_state.get('correo_input', ''):
-                st.session_state.suggested_email = maestros_options[selected_maestro]
+        # Detectar cambio de maestro y actualizar el correo automáticamente
+        if 'last_selected_maestro' not in st.session_state:
+            st.session_state.last_selected_maestro = selected_maestro
+            # Inicializar el correo en session_state
+            if 'correo_input' not in st.session_state:
+                if selected_maestro in maestros_options:
+                    st.session_state.correo_input = maestros_options[selected_maestro]
+        
+        if st.session_state.last_selected_maestro != selected_maestro:
+            # El maestro cambió, actualizar el correo
+            st.session_state.last_selected_maestro = selected_maestro
+            if selected_maestro in maestros_options:
+                st.session_state.correo_input = maestros_options[selected_maestro]
 
     with col2:
-        # El correo se pre-llena automáticamente pero es editable
-        default_correo = st.session_state.get('correo_institucional_correction', '')
+        # Inicializar el correo si no existe en session_state
+        if 'correo_input' not in st.session_state:
+            correo_inicial = st.session_state.get('correo_institucional_correction', '')
+            if not correo_inicial and selected_maestro and selected_maestro in maestros_options:
+                correo_inicial = maestros_options[selected_maestro]
+            st.session_state.correo_input = correo_inicial
         
-        # Si no hay correo de corrección, usar el sugerido o el del maestro seleccionado
-        if not default_correo:
-            default_correo = st.session_state.get('suggested_email', '')
-            if not default_correo and selected_maestro and selected_maestro in maestros_options:
-                default_correo = maestros_options[selected_maestro]
-        
+        # Usar solo key sin value para evitar conflictos
         correo_institucional = st.text_input(
             "Correo Institucional *",
-            value=default_correo,
             placeholder="Ej: juan.perez@universidad.edu.mx",
-            help="Correo pre-llenado según el maestro seleccionado, pero puede editarlo si es necesario",
+            help="Correo actualizado automáticamente según el maestro seleccionado, pero puede editarlo si es necesario",
             key="correo_input"
         )
-        
-        # Mostrar sugerencia si el correo no coincide con el del maestro seleccionado
-        if selected_maestro and selected_maestro in maestros_options:
-            suggested_email = maestros_options[selected_maestro]
-            if correo_institucional and correo_institucional != suggested_email:
-                st.info(f"💡 Correo sugerido para {selected_maestro}: {suggested_email}")
-                if st.button("📧 Usar correo sugerido", key="use_suggested_email"):
-                    st.session_state.suggested_email = suggested_email
-                    st.rerun()
 
     # Período académico
     st.subheader("📅 Período Académico")

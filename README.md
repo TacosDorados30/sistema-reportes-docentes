@@ -13,12 +13,29 @@ venv\Scripts\activate  # Windows
 pip install -r requirements.txt
 ```
 
+### Configuración Inicial
+
+1. **Copiar archivos de configuración:**
+```bash
+copy .env.example .env
+copy auth_config.json.example auth_config.json
+```
+
+2. **Configurar credenciales en `.env`:**
+   - Cambiar `EMAIL_USER` y `EMAIL_PASSWORD` con tus credenciales de Gmail
+   - Actualizar `SECRET_KEY` y `JWT_SECRET` con valores aleatorios
+
+3. **Configurar administrador en `auth_config.json`:**
+   - El sistema creará un usuario admin por defecto
+   - **Email:** admin@sistema.edu.mx
+   - **Contraseña:** Configurar en primer inicio
+
 ### Ejecutar Sistema
 ```bash
 python run_unified.py
 ```
 **URL**: http://localhost:8501  
-**Admin**: admin / admin123
+**Primer inicio**: El sistema te pedirá configurar la contraseña del administrador
 
 ## 📋 Características Principales
 

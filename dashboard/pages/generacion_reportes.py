@@ -451,6 +451,7 @@ def show_report_generation_page():
                 elif export_format == "PowerPoint":
                     try:
                         from pptx import Presentation
+                        from pptx.util import Pt
                         from io import BytesIO
                         import os
 
@@ -491,25 +492,49 @@ def show_report_generation_page():
                                 else:
                                     new_title = f"Informe Actividades DIyT_Anual {period_start.year}_CODI"
 
-                                # Update all text in slide 1
+                                # Update all text in slide 1 preserving formatting
                                 for shape in slide1.shapes:
                                     if hasattr(shape, 'text_frame'):
                                         for paragraph in shape.text_frame.paragraphs:
-                                            if 'Informe Actividades' in paragraph.text:
-                                                paragraph.text = new_title
-                                            elif '2do Trimestre 2025' in paragraph.text:
+                                            original_text = paragraph.text
+                                            
+                                            # Replace title with new format
+                                            if 'Informe' in original_text and 'Actividades' in original_text:
+                                                # Preserve formatting by updating runs instead of paragraph.text
                                                 if report_type == "quarterly":
-                                                    quarter = (
-                                                        (period_start.month - 1) // 3) + 1
-                                                    quarter_names = {
-                                                        1: "1er", 2: "2do", 3: "3er", 4: "4to"}
-                                                    quarter_name = quarter_names.get(
-                                                        quarter, str(quarter))
-                                                    paragraph.text = paragraph.text.replace(
-                                                        '2do Trimestre 2025', f'{quarter_name} Trimestre {period_start.year}')
+                                                    quarter = ((period_start.month - 1) // 3) + 1
+                                                    new_text = f"Informe de Actividades (Q{quarter} {period_start.year})"
                                                 else:
-                                                    paragraph.text = paragraph.text.replace(
-                                                        '2do Trimestre 2025', f'Año {period_start.year}')
+                                                    new_text = f"Informe de Actividades ({period_start.year})"
+                                                
+                                                # Update text while preserving format
+                                                if paragraph.runs:
+                                                    # Keep the first run's formatting
+                                                    first_run = paragraph.runs[0]
+                                                    # Clear all runs
+                                                    for run in paragraph.runs[1:]:
+                                                        run.text = ""
+                                                    # Update first run with new text
+                                                    first_run.text = new_text
+                                                else:
+                                                    paragraph.text = new_text
+                                            
+                                            # Replace any period references (enero - marzo 2025, 2do Trimestre 2025, etc.)
+                                            elif any(month in original_text.lower() for month in ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']) or 'Trimestre' in original_text:
+                                                if report_type == "quarterly":
+                                                    quarter = ((period_start.month - 1) // 3) + 1
+                                                    new_text = f"Q{quarter} {period_start.year}"
+                                                else:
+                                                    new_text = f"{period_start.year}"
+                                                
+                                                # Update text while preserving format
+                                                if paragraph.runs:
+                                                    first_run = paragraph.runs[0]
+                                                    for run in paragraph.runs[1:]:
+                                                        run.text = ""
+                                                    first_run.text = new_text
+                                                else:
+                                                    paragraph.text = new_text
 
                             # Update slide 3 with actual data
                             if len(prs.slides) > 2:
@@ -539,17 +564,39 @@ def show_report_generation_page():
                                         if any(keyword in current_text.lower() for keyword in ['trabajos', 'cursos', 'eventos', 'actividades', 'docentes']):
                                             # Clear existing content
                                             shape.text_frame.clear()
+                                            
+                                            # Enable auto-fit to shrink text if needed
+                                            shape.text_frame.word_wrap = True
+                                            
+                                            # Determine font size based on content amount
+                                            num_activities = len(activities_text)
+                                            if num_activities <= 5:
+                                                base_font_size = 14  # Normal size
+                                                title_font_size = 16
+                                            elif num_activities <= 8:
+                                                base_font_size = 12  # Medium size
+                                                title_font_size = 14
+                                            elif num_activities <= 12:
+                                                base_font_size = 10  # Small size
+                                                title_font_size = 12
+                                            else:
+                                                base_font_size = 9   # Very small size
+                                                title_font_size = 11
 
                                             # Add title paragraph
                                             title_p = shape.text_frame.paragraphs[0]
                                             title_p.text = f"En el Departamento se realizaron los siguientes productos durante el período {period_start.year}:"
                                             title_p.font.bold = True
+                                            title_p.font.size = Pt(title_font_size)
+                                            title_p.space_after = Pt(6)
 
-                                            # Add activities
+                                            # Add activities with adjusted font size
                                             for activity in activities_text:
                                                 p = shape.text_frame.add_paragraph()
                                                 p.text = activity
                                                 p.level = 0
+                                                p.font.size = Pt(base_font_size)
+                                                p.space_after = Pt(4)
 
                                             break
 
@@ -1036,6 +1083,7 @@ def generate_simple_report(forms, title, report_type, period_start, period_end):
                 if fresh_form.publicaciones:
                     for pub in fresh_form.publicaciones:
                         all_publicaciones.append({
+                            'formulario_id': form.id,
                             'titulo': getattr(pub, 'titulo', ''),
                             'autores': getattr(pub, 'autores', ''),
                             'evento_revista': getattr(pub, 'evento_revista', ''),
@@ -1049,6 +1097,7 @@ def generate_simple_report(forms, title, report_type, period_start, period_end):
                 if fresh_form.cursos_capacitacion:
                     for curso in fresh_form.cursos_capacitacion:
                         all_cursos.append({
+                            'formulario_id': form.id,
                             'nombre': getattr(curso, 'nombre_curso', ''),
                             'horas': getattr(curso, 'horas', 0),
                             'fecha': getattr(curso, 'fecha', None)
@@ -1061,6 +1110,7 @@ def generate_simple_report(forms, title, report_type, period_start, period_end):
                 if fresh_form.eventos_academicos:
                     for evento in fresh_form.eventos_academicos:
                         all_eventos.append({
+                            'formulario_id': form.id,
                             'nombre': getattr(evento, 'nombre_evento', ''),
                             'tipo': getattr(evento, 'tipo_participacion', '').value if hasattr(getattr(evento, 'tipo_participacion', None), 'value') else str(getattr(evento, 'tipo_participacion', ''))
                         })
@@ -1072,6 +1122,7 @@ def generate_simple_report(forms, title, report_type, period_start, period_end):
                 if fresh_form.diseno_curricular:
                     for diseno in fresh_form.diseno_curricular:
                         all_disenos.append({
+                            'formulario_id': form.id,
                             'nombre': getattr(diseno, 'nombre_curso', ''),
                             'descripcion': getattr(diseno, 'descripcion', '')
                         })
@@ -1083,6 +1134,7 @@ def generate_simple_report(forms, title, report_type, period_start, period_end):
                 if fresh_form.movilidad:
                     for movilidad in fresh_form.movilidad:
                         all_movilidades.append({
+                            'formulario_id': form.id,
                             'descripcion': getattr(movilidad, 'descripcion', ''),
                             'tipo': getattr(movilidad, 'tipo', '').value if hasattr(getattr(movilidad, 'tipo', None), 'value') else str(getattr(movilidad, 'tipo', '')),
                             'fecha': getattr(movilidad, 'fecha', None)
@@ -1095,6 +1147,7 @@ def generate_simple_report(forms, title, report_type, period_start, period_end):
                 if fresh_form.reconocimientos:
                     for reconocimiento in fresh_form.reconocimientos:
                         all_reconocimientos.append({
+                            'formulario_id': form.id,
                             'nombre': getattr(reconocimiento, 'nombre', ''),
                             'tipo': getattr(reconocimiento, 'tipo', '').value if hasattr(getattr(reconocimiento, 'tipo', None), 'value') else str(getattr(reconocimiento, 'tipo', '')),
                             'fecha': getattr(reconocimiento, 'fecha', None)
@@ -1107,6 +1160,7 @@ def generate_simple_report(forms, title, report_type, period_start, period_end):
                 if fresh_form.certificaciones:
                     for certificacion in fresh_form.certificaciones:
                         all_certificaciones.append({
+                            'formulario_id': form.id,
                             'nombre': getattr(certificacion, 'nombre', ''),
                             'fecha_obtencion': getattr(certificacion, 'fecha_obtencion', None)
                         })
@@ -1118,6 +1172,7 @@ def generate_simple_report(forms, title, report_type, period_start, period_end):
                 if fresh_form.otras_actividades:
                     for actividad in fresh_form.otras_actividades:
                         all_otras_actividades.append({
+                            'formulario_id': form.id,
                             'categoria': getattr(actividad, 'categoria', ''),
                             'titulo': getattr(actividad, 'titulo', ''),
                             'descripcion': getattr(actividad, 'descripcion', None),
@@ -1164,6 +1219,47 @@ def generate_annual_narrative_report(title, period_start, period_end, approved_f
     total_certificaciones = len(certificaciones)
     total_otras_actividades = len(otras_actividades)
     total_docentes = len(approved_forms)
+    
+    # Count unique teachers per activity type
+    try:
+        docentes_con_cursos = len(set(curso.get('formulario_id', 0) for curso in cursos if 'formulario_id' in curso)) if cursos else 0
+    except:
+        docentes_con_cursos = 1 if cursos else 0
+        
+    try:
+        docentes_con_publicaciones = len(set(pub.get('formulario_id', 0) for pub in publicaciones if 'formulario_id' in pub)) if publicaciones else 0
+    except:
+        docentes_con_publicaciones = len(publicaciones) if publicaciones else 0
+        
+    try:
+        docentes_con_eventos = len(set(evento.get('formulario_id', 0) for evento in eventos if 'formulario_id' in evento)) if eventos else 0
+    except:
+        docentes_con_eventos = len(eventos) if eventos else 0
+        
+    try:
+        docentes_con_disenos = len(set(diseno.get('formulario_id', 0) for diseno in disenos if 'formulario_id' in diseno)) if disenos else 0
+    except:
+        docentes_con_disenos = len(disenos) if disenos else 0
+        
+    try:
+        docentes_con_movilidades = len(set(mov.get('formulario_id', 0) for mov in movilidades if 'formulario_id' in mov)) if movilidades else 0
+    except:
+        docentes_con_movilidades = len(movilidades) if movilidades else 0
+        
+    try:
+        docentes_con_reconocimientos = len(set(rec.get('formulario_id', 0) for rec in reconocimientos if 'formulario_id' in rec)) if reconocimientos else 0
+    except:
+        docentes_con_reconocimientos = len(reconocimientos) if reconocimientos else 0
+        
+    try:
+        docentes_con_certificaciones = len(set(cert.get('formulario_id', 0) for cert in certificaciones if 'formulario_id' in cert)) if certificaciones else 0
+    except:
+        docentes_con_certificaciones = len(certificaciones) if certificaciones else 0
+        
+    try:
+        docentes_con_otras = len(set(act.get('formulario_id', 0) for act in otras_actividades if 'formulario_id' in act)) if otras_actividades else 0
+    except:
+        docentes_con_otras = len(otras_actividades) if otras_actividades else 0
 
     # Get examples for narrative
     pub_examples = []
@@ -1255,7 +1351,7 @@ def generate_annual_narrative_report(title, period_start, period_end, approved_f
 
     # Training courses section
     if total_cursos > 0:
-        curso_text = f"{total_docentes} docentes se capacitaron en {total_cursos} cursos"
+        curso_text = f"{docentes_con_cursos} {'docente se capacitó' if docentes_con_cursos == 1 else 'docentes se capacitaron'} en {total_cursos} {'curso' if total_cursos == 1 else 'cursos'}"
         if curso_examples:
             ejemplos = ", ".join(curso_examples[:4])
             curso_text += f" como {ejemplos}"
@@ -1264,7 +1360,7 @@ def generate_annual_narrative_report(title, period_start, period_end, approved_f
 
     # Curriculum design section
     if total_disenos > 0:
-        diseno_text = f"{total_disenos} productos de Diseño Curricular liberados"
+        diseno_text = f"{docentes_con_disenos} {'docente liberó' if docentes_con_disenos == 1 else 'docentes liberaron'} {total_disenos} {'producto de Diseño Curricular' if total_disenos == 1 else 'productos de Diseño Curricular'}"
         if diseno_examples:
             ejemplos = ", ".join(diseno_examples[:4])
             diseno_text += f", entre ellos cursos como {ejemplos}"
@@ -1273,7 +1369,7 @@ def generate_annual_narrative_report(title, period_start, period_end, approved_f
 
     # Academic events section
     if total_eventos > 0:
-        evento_text = f"{total_eventos} eventos académicos organizados"
+        evento_text = f"{docentes_con_eventos} {'docente organizó' if docentes_con_eventos == 1 else 'docentes organizaron'} {total_eventos} {'evento académico' if total_eventos == 1 else 'eventos académicos'}"
         if evento_examples:
             ejemplos = ", ".join(evento_examples[:5])
             evento_text += f", tales como {ejemplos}"
@@ -1282,7 +1378,7 @@ def generate_annual_narrative_report(title, period_start, period_end, approved_f
 
     # Mobility experiences section
     if total_movilidades > 0:
-        movilidad_text = f"{total_movilidades} experiencias de movilidad académica realizadas"
+        movilidad_text = f"{docentes_con_movilidades} {'docente realizó' if docentes_con_movilidades == 1 else 'docentes realizaron'} {total_movilidades} {'experiencia de movilidad académica' if total_movilidades == 1 else 'experiencias de movilidad académica'}"
         if movilidad_examples:
             ejemplos = ", ".join(movilidad_examples[:3])
             if len(movilidad_examples) > 3:
@@ -1357,6 +1453,47 @@ def generate_quarterly_narrative_report(title, period_start, period_end, approve
     total_certificaciones = len(certificaciones)
     total_otras_actividades = len(otras_actividades)
     total_docentes = len(approved_forms)
+    
+    # Count unique teachers per activity type
+    try:
+        docentes_con_cursos = len(set(curso.get('formulario_id', 0) for curso in cursos if 'formulario_id' in curso)) if cursos else 0
+    except Exception as e:
+        docentes_con_cursos = 1  # Fallback to 1 if error
+        
+    try:
+        docentes_con_publicaciones = len(set(pub.get('formulario_id', 0) for pub in publicaciones if 'formulario_id' in pub)) if publicaciones else 0
+    except:
+        docentes_con_publicaciones = len(publicaciones) if publicaciones else 0
+        
+    try:
+        docentes_con_eventos = len(set(evento.get('formulario_id', 0) for evento in eventos if 'formulario_id' in evento)) if eventos else 0
+    except:
+        docentes_con_eventos = len(eventos) if eventos else 0
+        
+    try:
+        docentes_con_disenos = len(set(diseno.get('formulario_id', 0) for diseno in disenos if 'formulario_id' in diseno)) if disenos else 0
+    except:
+        docentes_con_disenos = len(disenos) if disenos else 0
+        
+    try:
+        docentes_con_movilidades = len(set(mov.get('formulario_id', 0) for mov in movilidades if 'formulario_id' in mov)) if movilidades else 0
+    except:
+        docentes_con_movilidades = len(movilidades) if movilidades else 0
+        
+    try:
+        docentes_con_reconocimientos = len(set(rec.get('formulario_id', 0) for rec in reconocimientos if 'formulario_id' in rec)) if reconocimientos else 0
+    except:
+        docentes_con_reconocimientos = len(reconocimientos) if reconocimientos else 0
+        
+    try:
+        docentes_con_certificaciones = len(set(cert.get('formulario_id', 0) for cert in certificaciones if 'formulario_id' in cert)) if certificaciones else 0
+    except:
+        docentes_con_certificaciones = len(certificaciones) if certificaciones else 0
+        
+    try:
+        docentes_con_otras = len(set(act.get('formulario_id', 0) for act in otras_actividades if 'formulario_id' in act)) if otras_actividades else 0
+    except:
+        docentes_con_otras = len(otras_actividades) if otras_actividades else 0
 
     # Get brief examples
     pub_examples = [pub['titulo']
@@ -1386,78 +1523,86 @@ def generate_quarterly_narrative_report(title, period_start, period_end, approve
 
     # Publications
     if total_publicaciones > 0:
-        pub_text = f"- {total_publicaciones} artículos publicados en revistas indexadas"
+        pub_text = f"{docentes_con_publicaciones} {'docente' if docentes_con_publicaciones == 1 else 'docentes'} publicaron {total_publicaciones} {'artículo' if total_publicaciones == 1 else 'artículos'} en revistas indexadas"
         if pub_examples:
             ejemplos = ", ".join([f"{pub}" for pub in pub_examples[:2]])
             pub_text += f" ({ejemplos})"
         report_lines.append(f"> {pub_text}.")
+        report_lines.append("")
 
     # Training
     if total_cursos > 0:
-        curso_text = f"- {total_docentes} docentes capacitados en cursos"
+        curso_text = f"{docentes_con_cursos} {'docente se capacitó' if docentes_con_cursos == 1 else 'docentes se capacitaron'} en {total_cursos} {'curso' if total_cursos == 1 else 'cursos'}"
         if curso_examples:
             ejemplos = ", ".join(
                 [f"{curso}" for curso in curso_examples[:2]])
             curso_text += f" ({ejemplos})"
         report_lines.append(f"> {curso_text}.")
+        report_lines.append("")
 
     # Curriculum design
     if total_disenos > 0:
-        diseno_text = f"- {total_disenos} diseños curriculares liberados"
+        diseno_text = f"{docentes_con_disenos} {'docente liberó' if docentes_con_disenos == 1 else 'docentes liberaron'} {total_disenos} {'diseño curricular' if total_disenos == 1 else 'diseños curriculares'}"
         if diseno_examples:
             ejemplos = ", ".join(
                 [f"{diseno}" for diseno in diseno_examples[:3]])
             diseno_text += f" ({ejemplos})"
         report_lines.append(f"> {diseno_text}.")
+        report_lines.append("")
 
     # Events
     if total_eventos > 0:
-        evento_text = f"- {total_eventos} eventos académicos organizados"
+        evento_text = f"{docentes_con_eventos} {'docente organizó' if docentes_con_eventos == 1 else 'docentes organizaron'} {total_eventos} {'evento académico' if total_eventos == 1 else 'eventos académicos'}"
         if evento_examples:
             ejemplos = ", ".join(
                 [f"{evento}" for evento in evento_examples[:3]])
             evento_text += f" ({ejemplos})"
         report_lines.append(f"> {evento_text}.")
+        report_lines.append("")
 
     # Mobility experiences
     if total_movilidades > 0:
         movilidad_examples = list({mov['descripcion']
                                    for mov in movilidades if mov['descripcion']})[:3]
-        movilidad_text = f"- {total_movilidades} experiencias de movilidad académica realizadas"
+        movilidad_text = f"{docentes_con_movilidades} {'docente realizó' if docentes_con_movilidades == 1 else 'docentes realizaron'} {total_movilidades} {'experiencia de movilidad académica' if total_movilidades == 1 else 'experiencias de movilidad académica'}"
         if movilidad_examples:
             ejemplos = ", ".join(movilidad_examples)
             movilidad_text += f" ({ejemplos})"
         report_lines.append(f"> {movilidad_text}.")
+        report_lines.append("")
 
     # Recognitions
     if total_reconocimientos > 0:
         reconocimiento_examples = list({rec['nombre']
                                         for rec in reconocimientos if rec['nombre']})[:3]
-        reconocimiento_text = f"- {total_reconocimientos} reconocimientos y distinciones obtenidos"
+        reconocimiento_text = f"{docentes_con_reconocimientos} {'docente obtuvo' if docentes_con_reconocimientos == 1 else 'docentes obtuvieron'} {total_reconocimientos} {'reconocimiento' if total_reconocimientos == 1 else 'reconocimientos'} y {'distinción' if total_reconocimientos == 1 else 'distinciones'}"
         if reconocimiento_examples:
             ejemplos = ", ".join(reconocimiento_examples)
             reconocimiento_text += f" ({ejemplos})"
         report_lines.append(f"> {reconocimiento_text}.")
+        report_lines.append("")
 
     # Certifications
     if total_certificaciones > 0:
         certificacion_examples = list({cert['nombre']
                                        for cert in certificaciones if cert['nombre']})[:3]
-        certificacion_text = f"- {total_certificaciones} certificaciones profesionales adquiridas"
+        certificacion_text = f"{docentes_con_certificaciones} {'docente adquirió' if docentes_con_certificaciones == 1 else 'docentes adquirieron'} {total_certificaciones} {'certificación profesional' if total_certificaciones == 1 else 'certificaciones profesionales'}"
         if certificacion_examples:
             ejemplos = ", ".join(certificacion_examples)
             certificacion_text += f" ({ejemplos})"
         report_lines.append(f"> {certificacion_text}.")
+        report_lines.append("")
 
     # Other activities
     if total_otras_actividades > 0:
         otras_examples = list({act['titulo']
                                for act in otras_actividades if act['titulo']})[:3]
-        otras_text = f"- {total_otras_actividades} otras actividades académicas desarrolladas"
+        otras_text = f"{docentes_con_otras} {'docente desarrolló' if docentes_con_otras == 1 else 'docentes desarrollaron'} {total_otras_actividades} {'otra actividad académica' if total_otras_actividades == 1 else 'otras actividades académicas'}"
         if otras_examples:
             ejemplos = ", ".join(otras_examples)
             otras_text += f" ({ejemplos})"
         report_lines.append(f"> {otras_text}.")
+        report_lines.append("")
 
     report_lines.extend([
         "",
@@ -2041,8 +2186,10 @@ def generate_simple_report_display(forms, report_type, period_start, period_end,
                 key="download_simple_report"
             )
 
-            # Display content
-            st.markdown(report_content)
+            # Display content with proper line breaks
+            # Convert markdown to display properly in Streamlit
+            formatted_content = report_content.replace('\n\n', '\n\n&nbsp;\n\n')
+            st.markdown(formatted_content, unsafe_allow_html=True)
 
             # Show generation details
             with st.expander("ℹ️ Detalles de Generación"):

@@ -89,15 +89,23 @@ class AuthManager:
         except ValueError:
             return False
     
-    def authenticate(self, username: str, password: str) -> Optional[Dict[str, Any]]:
-        """Authenticate user credentials"""
+    def authenticate(self, email: str, password: str) -> Optional[Dict[str, Any]]:
+        """Authenticate user credentials using email"""
         
-        # Check if user exists
+        # Find user by email
         users = self.config.get("admin_users", {})
-        if username not in users:
-            return None
+        username = None
+        user_data = None
         
-        user_data = users[username]
+        for uname, udata in users.items():
+            if udata.get("email", "").lower() == email.lower():
+                username = uname
+                user_data = udata
+                break
+        
+        # If not found by email, return None
+        if not username or not user_data:
+            return None
         
         # Check if user is active
         if not user_data.get("active", True):

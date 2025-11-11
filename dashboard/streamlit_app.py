@@ -6,6 +6,14 @@ import os
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Import required modules
+from app.database.connection import SessionLocal
+from app.database.crud import FormularioCRUD
+from app.models.database import EstadoFormularioEnum
+from app.auth.streamlit_auth import auth
+from app.core.data_processor import DataProcessor
+from app.core.metrics_calculator import MetricsCalculator
+
 # Lazy imports for better performance
 @st.cache_resource
 def get_pandas():

@@ -1,0 +1,22 @@
+{
+  "admin_users": {
+    "admin": {
+      "password_hash": "GENERATED_HASH_HERE",
+      "name": "Administrador del Sistema",
+      "email": "admin@universidad.edu.mx",
+      "created_at": "2025-01-01T00:00:00.000000",
+      "active": true
+    }
+  },
+  "session_settings": {
+    "timeout_hours": 8,
+    "require_https": false,
+    "max_failed_attempts": 5,
+    "lockout_duration_minutes": 30
+  },
+  "security_settings": {
+    "password_min_length": 8,
+    "require_special_chars": true,
+    "session_secret": "CHANGE_THIS_TO_RANDOM_SECRET_KEY"
+  }
+}
