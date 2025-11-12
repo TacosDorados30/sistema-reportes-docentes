@@ -259,7 +259,7 @@ def show_report_generation_page():
                     else:
                         display_df = preview_df
 
-                    st.dataframe(display_df, use_container_width=True)
+                    st.dataframe(display_df, width="stretch")
                 else:
                     st.info(
                         "No hay registros para mostrar en el período seleccionado.")
@@ -729,7 +729,7 @@ def show_teacher_detail_tab():
             # Display forms table
             import pandas as pd
             df_forms = pd.DataFrame(forms_data)
-            st.dataframe(df_forms, use_container_width=True, hide_index=True)
+            st.dataframe(df_forms, width="stretch", hide_index=True)
 
             # Detailed view for each form
             st.markdown("#### 🔍 Información Detallada por Formulario")

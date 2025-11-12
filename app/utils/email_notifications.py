@@ -23,6 +23,9 @@ class EmailNotificationManager:
         self.from_email = self.email_user
         self.from_name = "Sistema de Reportes Docentes"
         
+        # URL de la aplicación
+        self.app_url = os.getenv("APP_URL", "http://localhost:8501")
+        
         # Fallback a SMTP si no hay SendGrid (para desarrollo local)
         self.smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
         self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
@@ -120,7 +123,7 @@ class EmailNotificationManager:
 Espero que te encuentres muy bien. Te escribo para recordarte de manera amistosa que aún no hemos recibido tu informe de actividades académicas del período actual.
 
 **¿Qué necesitas hacer?**
-1. Entra al formulario en línea: http://localhost:8501
+1. Entra al formulario en línea: {self.app_url}
 2. Completa la información de tus actividades académicas
 3. Envía el formulario para que podamos revisarlo
 
@@ -145,7 +148,7 @@ Te escribo con carácter urgente sobre tu informe de actividades académicas que
 
 **NECESITO QUE ACTÚES HOY:**
 Por favor, completa y envía tu formulario lo antes posible entrando a:
-http://localhost:8501
+{self.app_url}
 
 **Tu información:**
 - Nombre: {maestro['nombre_completo']}
@@ -168,7 +171,7 @@ Este es mi ÚLTIMO AVISO sobre tu informe de actividades académicas pendiente.
 **ACCIÓN INMEDIATA REQUERIDA - HOY:**
 Debes completar tu formulario ANTES del cierre del período.
 
-Entra AHORA a: http://localhost:8501
+Entra AHORA a: {self.app_url}
 
 **Consecuencias importantes del no envío:**
 - Tu información no será incluida en los reportes institucionales
@@ -193,11 +196,11 @@ NOTA: Este es el último recordatorio que enviaré.
         # Generar contenido del mensaje
         contenido = self.generar_mensaje_recordatorio(maestro, tipo)
         
-        # Intentar enviar con SendGrid primero
-        if self.sendgrid_api_key:
+        # Intentar enviar con SendGrid primero (verificar que tenga valor real)
+        if self.sendgrid_api_key and len(self.sendgrid_api_key) > 10:
             return self._enviar_con_sendgrid(maestro, contenido, tipo, periodo_academico)
         # Fallback a SMTP (para desarrollo local)
-        elif self.email_user and self.email_password:
+        elif self.email_user and self.email_password and len(self.email_password) > 5:
             return self._enviar_con_smtp(maestro, contenido, tipo, periodo_academico)
         else:
             logger.warning("Configuración de email no disponible - simulando envío")
@@ -267,6 +270,78 @@ NOTA: Este es el último recordatorio que enviaré.
             # Registrar error en base de datos
             self._registrar_notificacion(maestro['id'], tipo, contenido['asunto'], 
                                        contenido['mensaje'], "ERROR", periodo_academico)
+            return False
+    
+    def _enviar_personalizado_con_sendgrid(self, maestro: Dict, mensaje_personalizado: str, periodo_academico: str) -> bool:
+        """Envía email personalizado usando SendGrid API"""
+        try:
+            from sendgrid import SendGridAPIClient
+            from sendgrid.helpers.mail import Mail
+            
+            # Personalizar el mensaje
+            mensaje_final = mensaje_personalizado.replace("{nombre}", maestro['nombre_completo']).replace("{periodo}", periodo_academico).replace("{email}", maestro['correo_institucional'])
+            asunto = "Recordatorio - Formulario de Actividades Académicas"
+            
+            message = Mail(
+                from_email=self.from_email,
+                to_emails=maestro['correo_institucional'],
+                subject=asunto,
+                plain_text_content=mensaje_final
+            )
+            
+            sg = SendGridAPIClient(self.sendgrid_api_key)
+            response = sg.send(message)
+            
+            # Registrar notificación en base de datos
+            self._registrar_notificacion(maestro['id'], "RECORDATORIO", asunto, mensaje_final, "ENVIADO", periodo_academico)
+            
+            logger.info(f"Email personalizado enviado exitosamente a {maestro['correo_institucional']} via SendGrid")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error enviando email personalizado via SendGrid a {maestro['correo_institucional']}: {e}")
+            # Registrar error en base de datos
+            mensaje_final = mensaje_personalizado.replace("{nombre}", maestro['nombre_completo']).replace("{periodo}", periodo_academico).replace("{email}", maestro['correo_institucional'])
+            self._registrar_notificacion(maestro['id'], "RECORDATORIO", "Recordatorio - Formulario de Actividades Académicas", mensaje_final, "ERROR", periodo_academico)
+            return False
+    
+    def _enviar_personalizado_con_smtp(self, maestro: Dict, mensaje_personalizado: str, periodo_academico: str) -> bool:
+        """Envía email personalizado usando SMTP"""
+        try:
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            
+            # Personalizar el mensaje
+            mensaje_final = mensaje_personalizado.replace("{nombre}", maestro['nombre_completo']).replace("{periodo}", periodo_academico).replace("{email}", maestro['correo_institucional'])
+            asunto = "Recordatorio - Formulario de Actividades Académicas"
+            
+            # Crear mensaje
+            msg = MIMEMultipart()
+            msg['From'] = f"{self.from_name} <{self.from_email}>"
+            msg['To'] = maestro['correo_institucional']
+            msg['Subject'] = asunto
+            
+            # Agregar cuerpo del mensaje
+            msg.attach(MIMEText(mensaje_final, 'plain', 'utf-8'))
+            
+            # Enviar email
+            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+                server.starttls()
+                server.login(self.email_user, self.email_password)
+                server.send_message(msg)
+            
+            # Registrar notificación en base de datos
+            self._registrar_notificacion(maestro['id'], "RECORDATORIO", asunto, mensaje_final, "ENVIADO", periodo_academico)
+            
+            logger.info(f"Email personalizado enviado exitosamente a {maestro['correo_institucional']} via SMTP")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error enviando email personalizado via SMTP a {maestro['correo_institucional']}: {e}")
+            # Registrar error en base de datos
+            mensaje_final = mensaje_personalizado.replace("{nombre}", maestro['nombre_completo']).replace("{periodo}", periodo_academico).replace("{email}", maestro['correo_institucional'])
+            self._registrar_notificacion(maestro['id'], "RECORDATORIO", "Recordatorio - Formulario de Actividades Académicas", mensaje_final, "ERROR", periodo_academico)
             return False
     
     def _simular_envio(self, maestro: Dict, tipo: str, periodo_academico: Optional[str] = None) -> bool:
@@ -373,42 +448,16 @@ NOTA: Este es el último recordatorio que enviaré.
     def enviar_notificacion_personalizada(self, maestro: Dict, mensaje_personalizado: str, periodo_academico: str) -> bool:
         """Envía una notificación personalizada por email a un maestro específico"""
         
-        if not self.email_user or not self.email_password:
+        # Verificar si hay SendGrid configurado
+        if self.sendgrid_api_key and len(self.sendgrid_api_key) > 10:
+            return self._enviar_personalizado_con_sendgrid(maestro, mensaje_personalizado, periodo_academico)
+        # Fallback a SMTP
+        elif self.email_user and self.email_password and len(self.email_password) > 5:
+            return self._enviar_personalizado_con_smtp(maestro, mensaje_personalizado, periodo_academico)
+        else:
             logger.warning("Configuración de email no disponible - simulando envío")
             return self._simular_envio_personalizado(maestro, mensaje_personalizado, periodo_academico)
-        
-        try:
-            # Personalizar el mensaje
-            mensaje_final = mensaje_personalizado.replace("{nombre}", maestro['nombre_completo']).replace("{periodo}", periodo_academico).replace("{email}", maestro['correo_institucional'])
-            asunto = "Recordatorio - Formulario de Actividades Académicas"
-            
-            # Crear mensaje
-            msg = MIMEMultipart()
-            msg['From'] = f"{self.from_name} <{self.from_email}>"
-            msg['To'] = maestro['correo_institucional']
-            msg['Subject'] = asunto
-            
-            # Agregar cuerpo del mensaje
-            msg.attach(MIMEText(mensaje_final, 'plain', 'utf-8'))
-            
-            # Enviar email
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                server.starttls()
-                server.login(self.email_user, self.email_password)
-                server.send_message(msg)
-            
-            # Registrar notificación en base de datos
-            self._registrar_notificacion(maestro['id'], "RECORDATORIO", asunto, mensaje_final, "ENVIADO", periodo_academico)
-            
-            logger.info(f"Email personalizado enviado exitosamente a {maestro['correo_institucional']}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error enviando email personalizado a {maestro['correo_institucional']}: {e}")
-            # Registrar error en base de datos
-            mensaje_final = mensaje_personalizado.replace("{nombre}", maestro['nombre_completo']).replace("{periodo}", periodo_academico).replace("{email}", maestro['correo_institucional'])
-            self._registrar_notificacion(maestro['id'], "RECORDATORIO", "Recordatorio - Formulario de Actividades Académicas", mensaje_final, "ERROR", periodo_academico)
-            return False
+
     
     def _simular_envio_personalizado(self, maestro: Dict, mensaje_personalizado: str, periodo_academico: str) -> bool:
         """Simula el envío de email personalizado para desarrollo/testing"""

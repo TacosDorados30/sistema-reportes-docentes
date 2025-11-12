@@ -514,7 +514,7 @@ def show_main_dashboard(all_forms, metrics):
                 'Rechazados': '#f44336'
             }
         )
-        st.plotly_chart(fig_pie, use_container_width=True)
+        st.plotly_chart(fig_pie, width="stretch")
 
     with col2:
         # Academic activities bar chart
@@ -540,7 +540,7 @@ def show_main_dashboard(all_forms, metrics):
             color_continuous_scale='Blues'
         )
         fig_bar.update_layout(showlegend=False)
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar, width="stretch")
 
 
 def show_form_review():
@@ -858,7 +858,7 @@ def show_data_analysis(all_forms):
                 )
                 fig_trend.update_layout(
                     xaxis_title="Período", yaxis_title="Cantidad de Formularios")
-                st.plotly_chart(fig_trend, use_container_width=True)
+                st.plotly_chart(fig_trend, width="stretch")
 
                 # Status distribution over time
                 if 'estado' in df.columns:
@@ -879,7 +879,7 @@ def show_data_analysis(all_forms):
                             'RECHAZADO': '#f44336'
                         }
                     )
-                    st.plotly_chart(fig_status, use_container_width=True)
+                    st.plotly_chart(fig_status, width="stretch")
 
         with tab2:
             st.subheader("🔍 Calidad de Datos")
@@ -1040,7 +1040,7 @@ def show_data_export(all_forms):
 
             # Show preview
             st.subheader("👀 Vista Previa")
-            st.dataframe(df_export.head(10), use_container_width=True)
+            st.dataframe(df_export.head(10), width="stretch")
 
         except Exception as e:
             st.error(f"Error al generar exportación: {e}")

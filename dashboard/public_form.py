@@ -737,7 +737,7 @@ def main():
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        if st.button("📤 Enviar Formulario", type="primary", use_container_width=True):
+        if st.button("📤 Enviar Formulario", type="primary", width="stretch"):
             # Validate form
             errors = validate_form(
                 nombre_completo, correo_institucional, año_academico, trimestre)
