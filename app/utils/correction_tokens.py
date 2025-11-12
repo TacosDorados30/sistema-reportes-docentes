@@ -163,13 +163,13 @@ class CorrectionTokenManager:
         finally:
             db.close()
 
-    def create_correction_url(self, formulario_id: int, base_url: str = "http://localhost:8501") -> Optional[str]:
+    def create_correction_url(self, formulario_id: int, base_url: str = None) -> Optional[str]:
         """
         Crea una URL completa para corrección de formulario
 
         Args:
             formulario_id: ID del formulario
-            base_url: URL base del sistema
+            base_url: URL base del sistema (se detecta automáticamente si no se proporciona)
 
         Returns:
             URL completa para corrección o None si hay error
@@ -179,7 +179,31 @@ class CorrectionTokenManager:
         if not token:
             return None
 
-        return f"{base_url}/formulario?token={token}&mode=correction"
+        # Detectar URL base automáticamente
+        if base_url is None:
+            import os
+            # Intentar obtener la URL desde variables de entorno
+            base_url = os.getenv('APP_URL')
+            
+            if not base_url:
+                # Intentar detectar desde Streamlit
+                try:
+                    import streamlit as st
+                    # En Streamlit Cloud, usar la URL de la sesión
+                    if hasattr(st, 'get_option'):
+                        server_address = st.get_option('server.address')
+                        server_port = st.get_option('server.port')
+                        if server_address and server_address != 'localhost':
+                            base_url = f"https://{server_address}"
+                        else:
+                            # Fallback para desarrollo local
+                            base_url = f"http://localhost:{server_port}"
+                    else:
+                        base_url = "http://localhost:8501"
+                except:
+                    base_url = "http://localhost:8501"
+
+        return f"{base_url}?token={token}&mode=correction"
 
     def _token_exists(self, token: str) -> bool:
         """Verifica si un token ya existe en la base de datos"""

@@ -2,9 +2,6 @@
 Sistema de notificaciones por email para maestros
 """
 
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import os
@@ -20,13 +17,16 @@ class EmailNotificationManager:
         self.db = db
         self.maestros_crud = MaestroAutorizadoCRUD(db)
         
-        # Configuración de email (pre-configurada automáticamente)
+        # Configuración de email usando SendGrid
+        self.sendgrid_api_key = os.getenv("SENDGRID_API_KEY", "")
+        self.email_user = os.getenv("EMAIL_USER", "josueemmanul@gmail.com")
+        self.from_email = self.email_user
+        self.from_name = "Sistema de Reportes Docentes"
+        
+        # Fallback a SMTP si no hay SendGrid (para desarrollo local)
         self.smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
         self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
-        self.email_user = os.getenv("EMAIL_USER", "")
         self.email_password = os.getenv("EMAIL_PASSWORD", "")
-        self.from_email = self.email_user  # Usar el mismo email como remitente
-        self.from_name = "Sistema de Reportes Docentes"
     
     def get_maestros_sin_formulario(self, periodo_academico: Optional[str] = None) -> List[Dict]:
         """
@@ -190,14 +190,55 @@ NOTA: Este es el último recordatorio que enviaré.
     def enviar_notificacion(self, maestro: Dict, tipo: str = "RECORDATORIO", periodo_academico: Optional[str] = None) -> bool:
         """Envía una notificación por email a un maestro específico"""
         
-        if not self.email_user or not self.email_password:
-            logger.warning("Configuración de email no disponible - simulando envío")
-            logger.info("Para configurar email real, vaya a 'Configuración Email' en el dashboard")
-            return self._simular_envio(maestro, tipo, periodo_academico)
+        # Generar contenido del mensaje
+        contenido = self.generar_mensaje_recordatorio(maestro, tipo)
         
+        # Intentar enviar con SendGrid primero
+        if self.sendgrid_api_key:
+            return self._enviar_con_sendgrid(maestro, contenido, tipo, periodo_academico)
+        # Fallback a SMTP (para desarrollo local)
+        elif self.email_user and self.email_password:
+            return self._enviar_con_smtp(maestro, contenido, tipo, periodo_academico)
+        else:
+            logger.warning("Configuración de email no disponible - simulando envío")
+            return self._simular_envio(maestro, tipo, periodo_academico)
+    
+    def _enviar_con_sendgrid(self, maestro: Dict, contenido: Dict, tipo: str, periodo_academico: Optional[str] = None) -> bool:
+        """Envía email usando SendGrid API"""
         try:
-            # Generar contenido del mensaje
-            contenido = self.generar_mensaje_recordatorio(maestro, tipo)
+            from sendgrid import SendGridAPIClient
+            from sendgrid.helpers.mail import Mail
+            
+            message = Mail(
+                from_email=self.from_email,
+                to_emails=maestro['correo_institucional'],
+                subject=contenido['asunto'],
+                plain_text_content=contenido['mensaje']
+            )
+            
+            sg = SendGridAPIClient(self.sendgrid_api_key)
+            response = sg.send(message)
+            
+            # Registrar notificación en base de datos
+            self._registrar_notificacion(maestro['id'], tipo, contenido['asunto'], 
+                                       contenido['mensaje'], "ENVIADO", periodo_academico)
+            
+            logger.info(f"Email enviado exitosamente a {maestro['correo_institucional']} via SendGrid")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error enviando email personalizado a {maestro['correo_institucional']}: {e}")
+            # Registrar error en base de datos
+            self._registrar_notificacion(maestro['id'], tipo, contenido['asunto'], 
+                                       contenido['mensaje'], "ERROR", periodo_academico)
+            return False
+    
+    def _enviar_con_smtp(self, maestro: Dict, contenido: Dict, tipo: str, periodo_academico: Optional[str] = None) -> bool:
+        """Envía email usando SMTP (fallback para desarrollo local)"""
+        try:
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
             
             # Crear mensaje
             msg = MIMEMultipart()
@@ -218,13 +259,12 @@ NOTA: Este es el último recordatorio que enviaré.
             self._registrar_notificacion(maestro['id'], tipo, contenido['asunto'], 
                                        contenido['mensaje'], "ENVIADO", periodo_academico)
             
-            logger.info(f"Email enviado exitosamente a {maestro['correo_institucional']}")
+            logger.info(f"Email enviado exitosamente a {maestro['correo_institucional']} via SMTP")
             return True
             
         except Exception as e:
-            logger.error(f"Error enviando email a {maestro['correo_institucional']}: {e}")
+            logger.error(f"Error enviando email via SMTP a {maestro['correo_institucional']}: {e}")
             # Registrar error en base de datos
-            contenido = self.generar_mensaje_recordatorio(maestro, tipo)
             self._registrar_notificacion(maestro['id'], tipo, contenido['asunto'], 
                                        contenido['mensaje'], "ERROR", periodo_academico)
             return False
