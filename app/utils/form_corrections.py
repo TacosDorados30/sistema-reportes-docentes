@@ -20,17 +20,21 @@ class FormCorrectionManager:
     def __init__(self):
         self.token_manager = CorrectionTokenManager()
     
-    def create_correction_link(self, formulario_id: int, base_url: str = "http://localhost:8502") -> Optional[str]:
+    def create_correction_link(self, formulario_id: int, base_url: str = None) -> Optional[str]:
         """
         Crea un link de corrección para un formulario
         
         Args:
             formulario_id: ID del formulario a corregir
-            base_url: URL base del sistema
+            base_url: URL base del sistema (opcional, usa APP_URL de env si no se proporciona)
             
         Returns:
             URL completa para corrección o None si hay error
         """
+        import os
+        if base_url is None:
+            base_url = os.getenv("APP_URL", "http://localhost:8502")
+            
         token = self.token_manager.create_correction_token(formulario_id)
         
         if not token:

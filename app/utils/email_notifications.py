@@ -210,7 +210,7 @@ NOTA: Este es el último recordatorio que enviaré.
         """Envía email usando SendGrid API"""
         try:
             from sendgrid import SendGridAPIClient
-            from sendgrid.helpers.mail import Mail
+            from sendgrid.helpers.mail import Mail, TrackingSettings, ClickTracking
             
             message = Mail(
                 from_email=self.from_email,
@@ -218,6 +218,10 @@ NOTA: Este es el último recordatorio que enviaré.
                 subject=contenido['asunto'],
                 plain_text_content=contenido['mensaje']
             )
+            
+            # Desactivar click tracking para que las URLs no se modifiquen
+            message.tracking_settings = TrackingSettings()
+            message.tracking_settings.click_tracking = ClickTracking(enable=False, enable_text=False)
             
             sg = SendGridAPIClient(self.sendgrid_api_key)
             response = sg.send(message)
@@ -276,7 +280,7 @@ NOTA: Este es el último recordatorio que enviaré.
         """Envía email personalizado usando SendGrid API"""
         try:
             from sendgrid import SendGridAPIClient
-            from sendgrid.helpers.mail import Mail
+            from sendgrid.helpers.mail import Mail, TrackingSettings, ClickTracking
             
             # Personalizar el mensaje
             mensaje_final = mensaje_personalizado.replace("{nombre}", maestro['nombre_completo']).replace("{periodo}", periodo_academico).replace("{email}", maestro['correo_institucional'])
@@ -288,6 +292,10 @@ NOTA: Este es el último recordatorio que enviaré.
                 subject=asunto,
                 plain_text_content=mensaje_final
             )
+            
+            # Desactivar click tracking para que las URLs no se modifiquen
+            message.tracking_settings = TrackingSettings()
+            message.tracking_settings.click_tracking = ClickTracking(enable=False, enable_text=False)
             
             sg = SendGridAPIClient(self.sendgrid_api_key)
             response = sg.send(message)

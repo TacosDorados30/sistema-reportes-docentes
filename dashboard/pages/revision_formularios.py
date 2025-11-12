@@ -460,8 +460,10 @@ def show_form_review_page():
                     selected_form['id'])
 
                 if token:
-                    # URL del formulario público en el mismo sistema (puerto 8501)
-                    correction_url = f"http://localhost:8501?token={token}&mode=correction"
+                    # URL del formulario público usando variable de entorno
+                    import os
+                    app_url = os.getenv("APP_URL", "http://localhost:8501")
+                    correction_url = f"{app_url}?token={token}&mode=correction"
                 else:
                     correction_url = None
 
