@@ -519,7 +519,7 @@ def get_all_forms_for_review():
         result = db.execute(text("""
             SELECT id, nombre_completo, correo_institucional, fecha_envio, estado
             FROM formularios_envio 
-            WHERE es_version_activa = 1
+            WHERE es_version_activa = TRUE
             ORDER BY fecha_envio DESC
             LIMIT 50
         """))
@@ -560,7 +560,7 @@ def get_forms_by_status(status: str):
             SELECT id, nombre_completo, correo_institucional, fecha_envio, estado
             FROM formularios_envio 
             WHERE estado = :status 
-            AND es_version_activa = 1
+            AND es_version_activa = TRUE
             ORDER BY fecha_envio DESC
             LIMIT 30
         """), {"status": status})
