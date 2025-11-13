@@ -83,6 +83,9 @@ def get_available_periods():
 def show_maestros_pendientes(email_manager: EmailNotificationManager):
     """Muestra la lista de maestros que no han enviado formularios"""
     
+    # Obtener URL de la aplicación desde variable de entorno
+    app_url = os.getenv("APP_URL", "http://localhost:8501")
+    
     st.subheader("📋 Maestros Sin Formulario Enviado")
     
     # Filtros
@@ -211,6 +214,9 @@ def show_maestros_pendientes(email_manager: EmailNotificationManager):
 
 def show_envio_recordatorios(email_manager: EmailNotificationManager):
     """Muestra la interfaz para envío masivo de recordatorios"""
+    
+    # Obtener URL de la aplicación desde variable de entorno
+    app_url = os.getenv("APP_URL", "http://localhost:8501")
     
     st.subheader("📧 Envío Masivo de Recordatorios")
     
