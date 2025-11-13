@@ -19,6 +19,9 @@ from app.auth.streamlit_auth import auth
 def show_seguimiento_maestros_page():
     """Muestra la página de seguimiento de maestros"""
     
+    # Obtener URL de la aplicación desde variable de entorno
+    app_url = os.getenv("APP_URL", "http://localhost:8501")
+    
     # Require authentication
     if not auth.is_authenticated():
         auth.show_login_form()
@@ -181,7 +184,7 @@ def show_maestros_pendientes(email_manager: EmailNotificationManager):
                     if st.button("📧 Enviar Recordatorio", key=f"quick_reminder_{maestro['id']}"):
                         # Usar el mensaje personalizado si está disponible
                         mensaje_personalizado = st.session_state.get('mensaje_recordatorio', 
-                            "Hola {nombre},\n\nEspero que te encuentres muy bien. Te escribo para recordarte de manera amistosa que aún no hemos recibido tu informe de actividades académicas del período {periodo}.\n\n**¿Qué necesitas hacer?**\n1. Entra al formulario en línea: http://localhost:8501\n2. Completa la información de tus actividades académicas\n3. Envía el formulario para que podamos revisarlo\n\n**Información importante:**\n- Tu correo registrado es: {email}\n- El formulario incluye secciones para cursos, publicaciones, eventos y otras actividades\n- Una vez que lo envíes, lo revisaremos\n\nSi tienes alguna duda o problema técnico, no dudes en escribirme o llamarme.\n\nSaludos cordiales,\nCoordinación Académica\n\nP.D.: Agradezco mucho tu colaboración con este proceso.")
+                            f"Hola {{nombre}},\n\nEspero que te encuentres muy bien. Te escribo para recordarte de manera amistosa que aún no hemos recibido tu informe de actividades académicas del período {{periodo}}.\n\n**¿Qué necesitas hacer?**\n1. Entra al formulario en línea: {app_url}\n2. Completa la información de tus actividades académicas\n3. Envía el formulario para que podamos revisarlo\n\n**Información importante:**\n- Tu correo registrado es: {{email}}\n- El formulario incluye secciones para cursos, publicaciones, eventos y otras actividades\n- Una vez que lo envíes, lo revisaremos\n\nSi tienes alguna duda o problema técnico, no dudes en escribirme o llamarme.\n\nSaludos cordiales,\nCoordinación Académica\n\nP.D.: Agradezco mucho tu colaboración con este proceso.")
                         
                         exito = email_manager.enviar_notificacion_personalizada(maestro, mensaje_personalizado, periodo_academico)
                         if exito:
@@ -193,7 +196,7 @@ def show_maestros_pendientes(email_manager: EmailNotificationManager):
                     if st.button("🔔 Seguimiento", key=f"followup_{maestro['id']}"):
                         # Usar el mensaje personalizado para seguimiento también
                         mensaje_personalizado = st.session_state.get('mensaje_recordatorio', 
-                            "Hola {nombre},\n\nEspero que te encuentres muy bien. Te escribo para recordarte de manera amistosa que aún no hemos recibido tu informe de actividades académicas del período {periodo}.\n\n**¿Qué necesitas hacer?**\n1. Entra al formulario en línea: http://localhost:8501\n2. Completa la información de tus actividades académicas\n3. Envía el formulario para que podamos revisarlo\n\n**Información importante:**\n- Tu correo registrado es: {email}\n- El formulario incluye secciones para cursos, publicaciones, eventos y otras actividades\n- Una vez que lo envíes, lo revisaremos\n\nSi tienes alguna duda o problema técnico, no dudes en escribirme o llamarme.\n\nSaludos cordiales,\nCoordinación Académica\n\nP.D.: Agradezco mucho tu colaboración con este proceso.")
+                            f"Hola {{nombre}},\n\nEspero que te encuentres muy bien. Te escribo para recordarte de manera amistosa que aún no hemos recibido tu informe de actividades académicas del período {{periodo}}.\n\n**¿Qué necesitas hacer?**\n1. Entra al formulario en línea: {app_url}\n2. Completa la información de tus actividades académicas\n3. Envía el formulario para que podamos revisarlo\n\n**Información importante:**\n- Tu correo registrado es: {{email}}\n- El formulario incluye secciones para cursos, publicaciones, eventos y otras actividades\n- Una vez que lo envíes, lo revisaremos\n\nSi tienes alguna duda o problema técnico, no dudes en escribirme o llamarme.\n\nSaludos cordiales,\nCoordinación Académica\n\nP.D.: Agradezco mucho tu colaboración con este proceso.")
                         
                         exito = email_manager.enviar_notificacion_personalizada(maestro, mensaje_personalizado, periodo_academico)
                         if exito:
@@ -229,7 +232,7 @@ def show_envio_recordatorios(email_manager: EmailNotificationManager):
         # Campo para personalizar el mensaje
         mensaje_personalizado = st.text_area(
             "Mensaje del recordatorio:",
-            value="Hola {nombre},\n\nEspero que te encuentres muy bien. Te escribo para recordarte de manera amistosa que aún no hemos recibido tu informe de actividades académicas del período {periodo}.\n\n**¿Qué necesitas hacer?**\n1. Entra al formulario en línea: http://localhost:8501\n2. Completa la información de tus actividades académicas\n3. Envía el formulario para que podamos revisarlo\n\n**Información importante:**\n- Tu correo registrado es: {email}\n- El formulario incluye secciones para cursos, publicaciones, eventos y otras actividades\n- Una vez que lo envíes, lo revisaremos\n\nSi tienes alguna duda o problema técnico, no dudes en escribirme o llamarme.\n\nSaludos cordiales,\nCoordinación Académica\n\nP.D.: Agradezco mucho tu colaboración con este proceso.",
+            value=f"Hola {{nombre}},\n\nEspero que te encuentres muy bien. Te escribo para recordarte de manera amistosa que aún no hemos recibido tu informe de actividades académicas del período {{periodo}}.\n\n**¿Qué necesitas hacer?**\n1. Entra al formulario en línea: {app_url}\n2. Completa la información de tus actividades académicas\n3. Envía el formulario para que podamos revisarlo\n\n**Información importante:**\n- Tu correo registrado es: {{email}}\n- El formulario incluye secciones para cursos, publicaciones, eventos y otras actividades\n- Una vez que lo envíes, lo revisaremos\n\nSi tienes alguna duda o problema técnico, no dudes en escribirme o llamarme.\n\nSaludos cordiales,\nCoordinación Académica\n\nP.D.: Agradezco mucho tu colaboración con este proceso.",
             height=200,
             help="Puede usar {nombre}, {periodo} y {email} como variables que se reemplazarán automáticamente"
         )
