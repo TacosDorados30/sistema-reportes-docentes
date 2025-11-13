@@ -889,13 +889,28 @@ class MaestroAutorizadoCRUD:
         ).first()
     
     def create_maestro(self, nombre_completo: str, correo_institucional: str) -> Optional[MaestroAutorizadoDB]:
-        """Crea un nuevo maestro autorizado"""
+        """Crea un nuevo maestro autorizado o reactiva uno existente"""
         try:
-            # Verificar si ya existe
-            existing = self.get_maestro_by_email(correo_institucional)
-            if existing:
-                return None  # Ya existe
+            # Verificar si ya existe un maestro activo
+            existing_active = self.get_maestro_by_email(correo_institucional)
+            if existing_active:
+                return None  # Ya existe y está activo
             
+            # Verificar si existe un maestro inactivo (soft deleted)
+            existing_inactive = self.db.query(MaestroAutorizadoDB).filter(
+                MaestroAutorizadoDB.correo_institucional == correo_institucional
+            ).first()
+            
+            if existing_inactive:
+                # Reactivar el maestro existente
+                existing_inactive.activo = True
+                existing_inactive.nombre_completo = nombre_completo  # Actualizar nombre por si cambió
+                existing_inactive.fecha_actualizacion = datetime.utcnow()
+                self.db.commit()
+                self.db.refresh(existing_inactive)
+                return existing_inactive
+            
+            # Si no existe, crear uno nuevo
             maestro = MaestroAutorizadoDB(
                 nombre_completo=nombre_completo,
                 correo_institucional=correo_institucional,
@@ -909,7 +924,7 @@ class MaestroAutorizadoCRUD:
             return maestro
             
         except Exception as e:
-            print(f"Error creando maestro: {e}")
+            print(f"Error creando/reactivando maestro: {e}")
             self.db.rollback()
             return None
     
