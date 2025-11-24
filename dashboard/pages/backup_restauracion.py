@@ -199,28 +199,31 @@ def import_all_data(data):
         st.info("🗑️ Borrando datos existentes...")
         
         # 1. Primero borrar audit logs (tiene FK a formularios y maestros)
-        db.query(AuditLog).delete()
+        db.query(AuditLog).delete(synchronize_session=False)
+        db.commit()  # Commit inmediato para asegurar que se borre
         
         # 2. Luego borrar actividades relacionadas con formularios
-        db.query(OtraActividadAcademicaDB).delete()
-        db.query(CertificacionDB).delete()
-        db.query(ReconocimientoDB).delete()
-        db.query(ExperienciaMovilidadDB).delete()
-        db.query(DisenoCurricularDB).delete()
-        db.query(EventoAcademicoDB).delete()
-        db.query(PublicacionDB).delete()
-        db.query(CursoCapacitacionDB).delete()
+        db.query(OtraActividadAcademicaDB).delete(synchronize_session=False)
+        db.query(CertificacionDB).delete(synchronize_session=False)
+        db.query(ReconocimientoDB).delete(synchronize_session=False)
+        db.query(ExperienciaMovilidadDB).delete(synchronize_session=False)
+        db.query(DisenoCurricularDB).delete(synchronize_session=False)
+        db.query(EventoAcademicoDB).delete(synchronize_session=False)
+        db.query(PublicacionDB).delete(synchronize_session=False)
+        db.query(CursoCapacitacionDB).delete(synchronize_session=False)
+        db.commit()  # Commit después de actividades
         
         # 3. Borrar notificaciones (tiene FK a maestros)
-        db.query(NotificacionEmailDB).delete()
+        db.query(NotificacionEmailDB).delete(synchronize_session=False)
+        db.commit()  # Commit después de notificaciones
         
         # 4. Borrar formularios
-        db.query(FormularioEnvioDB).delete()
+        db.query(FormularioEnvioDB).delete(synchronize_session=False)
+        db.commit()  # Commit después de formularios
         
         # 5. Finalmente borrar maestros
-        db.query(MaestroAutorizadoDB).delete()
-        
-        db.commit()
+        db.query(MaestroAutorizadoDB).delete(synchronize_session=False)
+        db.commit()  # Commit final
         
         # Importar maestros autorizados
         st.info("👥 Importando maestros autorizados...")
