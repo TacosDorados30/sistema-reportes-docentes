@@ -436,6 +436,14 @@ def show_authenticated_dashboard():
             st.session_state.show_password_change = False
             st.rerun()
         return
+    
+    if st.session_state.get('show_backup_page'):
+        from dashboard.pages.backup_restauracion import show_backup_restauracion_page
+        show_backup_restauracion_page()
+        if st.button("← Volver al Dashboard"):
+            st.session_state.show_backup_page = False
+            st.rerun()
+        return
 
     # Load data with optimized caching - always show main dashboard
     try:

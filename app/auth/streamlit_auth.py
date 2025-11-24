@@ -216,6 +216,10 @@ class StreamlitAuth:
         # Change password and email
         if st.sidebar.button("🔑 Cambiar Contraseña y Email"):
             st.session_state.show_password_change = True
+        
+        # Backup and Restoration
+        if st.sidebar.button("💾 Backup y Restauración"):
+            st.session_state.show_backup_page = True
 
     def show_user_management(self):
         """Show user management interface"""
