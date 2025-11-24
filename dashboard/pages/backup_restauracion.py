@@ -214,7 +214,7 @@ def import_all_data(data):
                     certificaciones,
                     reconocimientos,
                     experiencias_movilidad,
-                    disenos_curriculares,
+                    diseno_curricular,
                     eventos_academicos,
                     publicaciones,
                     cursos_capacitacion,
