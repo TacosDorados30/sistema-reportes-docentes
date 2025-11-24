@@ -195,8 +195,13 @@ def import_all_data(data):
     db = SessionLocal()
     try:
         # Borrar todos los datos existentes
+        # IMPORTANTE: El orden importa por las foreign keys
         st.info("🗑️ Borrando datos existentes...")
         
+        # 1. Primero borrar audit logs (tiene FK a formularios y maestros)
+        db.query(AuditLog).delete()
+        
+        # 2. Luego borrar actividades relacionadas con formularios
         db.query(OtraActividadAcademicaDB).delete()
         db.query(CertificacionDB).delete()
         db.query(ReconocimientoDB).delete()
@@ -205,9 +210,14 @@ def import_all_data(data):
         db.query(EventoAcademicoDB).delete()
         db.query(PublicacionDB).delete()
         db.query(CursoCapacitacionDB).delete()
+        
+        # 3. Borrar notificaciones (tiene FK a maestros)
         db.query(NotificacionEmailDB).delete()
-        db.query(AuditLog).delete()
+        
+        # 4. Borrar formularios
         db.query(FormularioEnvioDB).delete()
+        
+        # 5. Finalmente borrar maestros
         db.query(MaestroAutorizadoDB).delete()
         
         db.commit()
