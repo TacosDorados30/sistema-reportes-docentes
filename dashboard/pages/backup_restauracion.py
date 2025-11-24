@@ -206,21 +206,28 @@ def import_all_data(data):
         
         try:
             # Intentar con TRUNCATE CASCADE (PostgreSQL)
-            db.execute(text("TRUNCATE TABLE audit_log CASCADE"))
-            db.execute(text("TRUNCATE TABLE otras_actividades_academicas CASCADE"))
-            db.execute(text("TRUNCATE TABLE certificaciones CASCADE"))
-            db.execute(text("TRUNCATE TABLE reconocimientos CASCADE"))
-            db.execute(text("TRUNCATE TABLE experiencias_movilidad CASCADE"))
-            db.execute(text("TRUNCATE TABLE disenos_curriculares CASCADE"))
-            db.execute(text("TRUNCATE TABLE eventos_academicos CASCADE"))
-            db.execute(text("TRUNCATE TABLE publicaciones CASCADE"))
-            db.execute(text("TRUNCATE TABLE cursos_capacitacion CASCADE"))
-            db.execute(text("TRUNCATE TABLE notificaciones_email CASCADE"))
-            db.execute(text("TRUNCATE TABLE formularios_envio CASCADE"))
-            db.execute(text("TRUNCATE TABLE maestros_autorizados CASCADE"))
+            # TRUNCATE todas las tablas en una sola operación
+            db.execute(text("""
+                TRUNCATE TABLE 
+                    audit_log,
+                    otras_actividades_academicas,
+                    certificaciones,
+                    reconocimientos,
+                    experiencias_movilidad,
+                    disenos_curriculares,
+                    eventos_academicos,
+                    publicaciones,
+                    cursos_capacitacion,
+                    notificaciones_email,
+                    formularios_envio,
+                    maestros_autorizados
+                RESTART IDENTITY CASCADE
+            """))
             db.commit()
+            st.success("✅ Datos borrados exitosamente (PostgreSQL)")
         except Exception as e:
             # Si falla TRUNCATE (SQLite), usar DELETE en orden correcto
+            st.warning(f"⚠️ TRUNCATE falló, usando DELETE: {str(e)[:100]}")
             db.rollback()
             
             # 1. Primero borrar audit logs (tiene FK a formularios y maestros)
