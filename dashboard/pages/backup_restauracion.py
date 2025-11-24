@@ -46,8 +46,8 @@ def export_all_data(include_audit_logs=False):
         if include_audit_logs:
             data["audit_logs"] = []
         
-        # Exportar maestros autorizados
-        maestros = db.query(MaestroAutorizadoDB).all()
+        # Exportar maestros autorizados (solo activos)
+        maestros = db.query(MaestroAutorizadoDB).filter(MaestroAutorizadoDB.activo == True).all()
         for maestro in maestros:
             data["maestros_autorizados"].append({
                 "id": maestro.id,
@@ -158,8 +158,10 @@ def export_all_data(include_audit_logs=False):
             
             data["formularios"].append(form_data)
         
-        # Exportar notificaciones
-        notificaciones = db.query(NotificacionEmailDB).all()
+        # Exportar notificaciones (solo de maestros activos)
+        notificaciones = db.query(NotificacionEmailDB).join(
+            MaestroAutorizadoDB, NotificacionEmailDB.maestro_id == MaestroAutorizadoDB.id
+        ).filter(MaestroAutorizadoDB.activo == True).all()
         for notif in notificaciones:
             data["notificaciones"].append({
                 "maestro_id": notif.maestro_id,

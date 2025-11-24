@@ -299,24 +299,29 @@ def main():
     """Main application - handles both public form and admin dashboard"""
 
     # Check if we should show the public form or admin dashboard
+    # The URL parameter is the source of truth
     try:
         # Try new Streamlit syntax
         query_params = st.query_params
         show_admin = query_params.get("admin", "false").lower() == "true"
+        
+        # If user is authenticated but URL doesn't have admin param, add it
+        if auth.is_authenticated() and not show_admin:
+            st.query_params["admin"] = "true"
+            show_admin = True
+            
     except AttributeError:
         # Use old Streamlit syntax
         query_params = st.experimental_get_query_params()
         show_admin = query_params.get("admin", ["false"])[0].lower() == "true"
+        
+        # If user is authenticated but URL doesn't have admin param, add it
+        if auth.is_authenticated() and not show_admin:
+            st.experimental_set_query_params(admin="true")
+            show_admin = True
 
-    # Also check session state for admin mode
-    if 'admin_mode' not in st.session_state:
-        st.session_state.admin_mode = show_admin
-
-    # Allow switching modes
+    # The URL parameter determines the mode - simple and reliable
     if show_admin:
-        st.session_state.admin_mode = True
-
-    if st.session_state.admin_mode:
         show_admin_dashboard()
     else:
         show_public_form()
