@@ -200,32 +200,55 @@ def import_all_data(data):
         # IMPORTANTE: El orden importa por las foreign keys
         st.info("🗑️ Borrando datos existentes...")
         
-        # 1. Primero borrar audit logs (tiene FK a formularios y maestros)
-        db.query(AuditLog).delete(synchronize_session=False)
-        db.commit()  # Commit inmediato para asegurar que se borre
+        # Usar TRUNCATE CASCADE para PostgreSQL (más eficiente y maneja FKs automáticamente)
+        # Para SQLite, usar DELETE normal
+        from sqlalchemy import text
         
-        # 2. Luego borrar actividades relacionadas con formularios
-        db.query(OtraActividadAcademicaDB).delete(synchronize_session=False)
-        db.query(CertificacionDB).delete(synchronize_session=False)
-        db.query(ReconocimientoDB).delete(synchronize_session=False)
-        db.query(ExperienciaMovilidadDB).delete(synchronize_session=False)
-        db.query(DisenoCurricularDB).delete(synchronize_session=False)
-        db.query(EventoAcademicoDB).delete(synchronize_session=False)
-        db.query(PublicacionDB).delete(synchronize_session=False)
-        db.query(CursoCapacitacionDB).delete(synchronize_session=False)
-        db.commit()  # Commit después de actividades
-        
-        # 3. Borrar notificaciones (tiene FK a maestros)
-        db.query(NotificacionEmailDB).delete(synchronize_session=False)
-        db.commit()  # Commit después de notificaciones
-        
-        # 4. Borrar formularios
-        db.query(FormularioEnvioDB).delete(synchronize_session=False)
-        db.commit()  # Commit después de formularios
-        
-        # 5. Finalmente borrar maestros
-        db.query(MaestroAutorizadoDB).delete(synchronize_session=False)
-        db.commit()  # Commit final
+        try:
+            # Intentar con TRUNCATE CASCADE (PostgreSQL)
+            db.execute(text("TRUNCATE TABLE audit_log CASCADE"))
+            db.execute(text("TRUNCATE TABLE otras_actividades_academicas CASCADE"))
+            db.execute(text("TRUNCATE TABLE certificaciones CASCADE"))
+            db.execute(text("TRUNCATE TABLE reconocimientos CASCADE"))
+            db.execute(text("TRUNCATE TABLE experiencias_movilidad CASCADE"))
+            db.execute(text("TRUNCATE TABLE disenos_curriculares CASCADE"))
+            db.execute(text("TRUNCATE TABLE eventos_academicos CASCADE"))
+            db.execute(text("TRUNCATE TABLE publicaciones CASCADE"))
+            db.execute(text("TRUNCATE TABLE cursos_capacitacion CASCADE"))
+            db.execute(text("TRUNCATE TABLE notificaciones_email CASCADE"))
+            db.execute(text("TRUNCATE TABLE formularios_envio CASCADE"))
+            db.execute(text("TRUNCATE TABLE maestros_autorizados CASCADE"))
+            db.commit()
+        except Exception as e:
+            # Si falla TRUNCATE (SQLite), usar DELETE en orden correcto
+            db.rollback()
+            
+            # 1. Primero borrar audit logs (tiene FK a formularios y maestros)
+            db.query(AuditLog).delete(synchronize_session=False)
+            db.commit()
+            
+            # 2. Luego borrar actividades relacionadas con formularios
+            db.query(OtraActividadAcademicaDB).delete(synchronize_session=False)
+            db.query(CertificacionDB).delete(synchronize_session=False)
+            db.query(ReconocimientoDB).delete(synchronize_session=False)
+            db.query(ExperienciaMovilidadDB).delete(synchronize_session=False)
+            db.query(DisenoCurricularDB).delete(synchronize_session=False)
+            db.query(EventoAcademicoDB).delete(synchronize_session=False)
+            db.query(PublicacionDB).delete(synchronize_session=False)
+            db.query(CursoCapacitacionDB).delete(synchronize_session=False)
+            db.commit()
+            
+            # 3. Borrar notificaciones (tiene FK a maestros)
+            db.query(NotificacionEmailDB).delete(synchronize_session=False)
+            db.commit()
+            
+            # 4. Borrar formularios
+            db.query(FormularioEnvioDB).delete(synchronize_session=False)
+            db.commit()
+            
+            # 5. Finalmente borrar maestros
+            db.query(MaestroAutorizadoDB).delete(synchronize_session=False)
+            db.commit()
         
         # Importar maestros autorizados
         st.info("👥 Importando maestros autorizados...")
