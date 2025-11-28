@@ -29,12 +29,23 @@ class AuthManager:
     def _load_or_create_config(self) -> Dict[str, Any]:
         """Load authentication configuration or create default"""
         
+        # Try to load from file first (PRIORITY)
         if self.config_file.exists():
             try:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    config = json.load(f)
+                    # File has priority - don't merge env vars
+                    # This allows password changes to persist
+                    return config
             except (json.JSONDecodeError, FileNotFoundError):
                 pass
+        
+        # If file doesn't exist, try to load from environment variables (FALLBACK)
+        env_config = self._load_from_env()
+        if env_config:
+            # Save env config to file so future changes persist
+            self._save_config(env_config)
+            return env_config
         
         # Create default configuration
         default_config = {
@@ -63,6 +74,49 @@ class AuthManager:
         # Save default configuration
         self._save_config(default_config)
         return default_config
+    
+    def _load_from_env(self) -> Optional[Dict[str, Any]]:
+        """Load admin configuration from environment variables"""
+        
+        # Check if admin credentials are in environment
+        admin_hash = os.getenv("ADMIN_PASSWORD_HASH")
+        admin_name = os.getenv("ADMIN_NAME", "Administrador")
+        admin_email = os.getenv("ADMIN_EMAIL", "admin@universidad.edu.mx")
+        
+        if not admin_hash:
+            return None
+        
+        return {
+            "admin_users": {
+                "admin": {
+                    "password_hash": admin_hash,
+                    "name": admin_name,
+                    "email": admin_email,
+                    "active": True
+                }
+            },
+            "session_settings": {
+                "timeout_hours": 8,
+                "require_https": False,
+                "max_failed_attempts": 5,
+                "lockout_duration_minutes": 30
+            },
+            "security_settings": {
+                "password_min_length": 8,
+                "require_special_chars": True,
+                "session_secret": os.getenv("SESSION_SECRET", secrets.token_hex(32))
+            }
+        }
+    
+    def _merge_env_config(self, config: Dict[str, Any]):
+        """Merge environment variables into config (env takes precedence)"""
+        
+        admin_hash = os.getenv("ADMIN_PASSWORD_HASH")
+        if admin_hash and "admin_users" in config and "admin" in config["admin_users"]:
+            # Environment variable overrides file
+            config["admin_users"]["admin"]["password_hash"] = admin_hash
+            config["admin_users"]["admin"]["name"] = os.getenv("ADMIN_NAME", config["admin_users"]["admin"].get("name", "Administrador"))
+            config["admin_users"]["admin"]["email"] = os.getenv("ADMIN_EMAIL", config["admin_users"]["admin"].get("email", "admin@universidad.edu.mx"))
     
     def _save_config(self, config: Dict[str, Any]):
         """Save authentication configuration"""
